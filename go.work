@@ -5,4 +5,7 @@ use (
 	./db
 	./handlers
 	./helpers
+	./middlewares
+	./models
+	./routers
 )
