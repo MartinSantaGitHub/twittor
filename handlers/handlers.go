@@ -12,10 +12,15 @@ import (
 	"github.com/rs/cors"
 )
 
+func home(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./public/index.html")
+}
+
 /* Handler that set the PORT and run the service */
 func Handlers() {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/", home)
 	router.HandleFunc("/registry", middlewares.CheckDB(routers.Registry)).Methods("POST")
 
 	PORT := helpers.GetEnvVariable("PORT")
