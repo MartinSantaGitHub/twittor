@@ -22,6 +22,7 @@ func Handlers() {
 	router.HandleFunc("/", home)
 
 	users.Registry(router)
+	users.Login(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)

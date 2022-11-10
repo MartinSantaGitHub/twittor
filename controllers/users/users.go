@@ -2,10 +2,13 @@ package users
 
 import (
 	"db"
+	"encoding/json"
 	"helpers"
+	"jwt"
 	"models"
+	mr "models/response"
 	"net/http"
-	"net/mail"
+	"time"
 )
 
 /* Registry permits to create a user in the DB */
@@ -45,21 +48,37 @@ func Registry(w http.ResponseWriter, r *http.Request) {
 
 /* Login does the login */
 func Login(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("content-type", "application/json")
-
 	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
+	userDb, isUser := db.TryLogin(user.Email, user.Password)
 
-	if len(user.Email) == 0 {
-		http.Error(w, "The email is required", 400)
+	if !isUser {
+		http.Error(w, "User and/or password invalid", 400)
 
 		return
 	}
 
-	_, err := mail.ParseAddress(user.Email)
+	jwtKey, err := jwt.GenerateJWT(userDb)
 
 	if err != nil {
-		http.Error(w, "Invalid email format", 400)
+		http.Error(w, "Something went wrong"+err.Error(), 500)
 
 		return
 	}
+
+	response := mr.LoginResponse{
+		Token: jwtKey,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(response)
+
+	expirationTime := time.Now().Add(24 * time.Hour)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:    "token",
+		Value:   jwtKey,
+		Expires: expirationTime,
+	})
 }
