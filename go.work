@@ -2,10 +2,12 @@ go 1.19
 
 use (
 	./
+	./controllers/users
+	./routes/users
 	./db
 	./handlers
 	./helpers
+	./jwt
 	./middlewares
 	./models
-	./routers
 )

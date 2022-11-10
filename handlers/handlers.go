@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"helpers"
 	"log"
-	"middlewares"
 	"net/http"
-	"routers"
+	users "routes/users"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -21,7 +20,8 @@ func Handlers() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", home)
-	router.HandleFunc("/registry", middlewares.CheckDB(routers.Registry)).Methods("POST")
+
+	users.Registry(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)
