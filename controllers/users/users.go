@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-/* Registry permits to create a user in the DB */
+/* Registry Permits to create a user in the DB */
 func Registry(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
 
@@ -46,7 +46,7 @@ func Registry(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-/* Login does the login */
+/* Login Does the login */
 func Login(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
 	userDb, isUser := db.TryLogin(user.Email, user.Password)
@@ -81,4 +81,26 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		Value:   jwtKey,
 		Expires: expirationTime,
 	})
+}
+
+/* GetProfile Gets an user profile */
+func GetProfile(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+
+	if len(id) < 1 {
+		http.Error(w, "Missing parameter id", http.StatusBadRequest)
+
+		return
+	}
+
+	profile, err := db.GetProfile(id)
+
+	if err != nil {
+		http.Error(w, "An error occurred when trying to find a registry in the DB: "+err.Error(), http.StatusInternalServerError)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(profile)
 }
