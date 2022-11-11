@@ -104,3 +104,32 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(profile)
 }
+
+/* ModifyRegistry Allows to modify a registry */
+func ModifyRegistry(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+
+	if err != nil {
+		http.Error(w, "Invalid data"+err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	status, err := db.ModifyRegistry(user, jwt.UserId)
+
+	if err != nil {
+		http.Error(w, "An error has occurred when trying to modify the registry: "+err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if !status {
+		http.Error(w, "The registry was not modified", http.StatusNotModified)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

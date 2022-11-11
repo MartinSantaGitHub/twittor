@@ -22,3 +22,8 @@ func Login(router *mux.Router) {
 func GetProfile(router *mux.Router) {
 	router.HandleFunc("/profile", helpers.MultipleMiddleware(users.GetProfile, middlewares.CheckDB, middlewares.ValidateJWT)).Methods("GET")
 }
+
+/* ModifyRegistry Allows to modify a registry */
+func ModifyRegistry(router *mux.Router) {
+	router.HandleFunc("/registry", helpers.MultipleMiddleware(users.ModifyRegistry, middlewares.CheckDB, middlewares.ValidateJWT)).Methods("PUT")
+}

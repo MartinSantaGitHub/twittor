@@ -24,6 +24,7 @@ func Handlers() {
 	users.Registry(router)
 	users.Login(router)
 	users.GetProfile(router)
+	users.ModifyRegistry(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)
