@@ -1,11 +1,8 @@
 package users
 
 import (
-	"context"
 	"db"
-	"helpers"
 	"models"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -13,13 +10,10 @@ import (
 
 /* ModifyRegistry modifies a registry in the DB */
 func ModifyRegistry(user models.User, id string) (bool, error) {
-	timeout, _ := time.ParseDuration(helpers.GetEnvVariable("DB_TIMEOUT"))
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	col, ctx, cancel := db.GetCollection("twittor", "users")
 
 	defer cancel()
 
-	database := db.MongoConnection.Database("twittor")
-	col := database.Collection("users")
 	registry := make(map[string]interface{})
 
 	if len(user.Name) > 0 {

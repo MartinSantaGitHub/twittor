@@ -30,6 +30,7 @@ func Handlers() {
 
 	// Register Tweets endpoints
 	tweets.Insert(router)
+	tweets.Get(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)

@@ -30,7 +30,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, status, err := db.InsertRegistry(user)
+	_, status, err := db.InsertUser(user)
 
 	if err != nil {
 		http.Error(w, "There was an error trying to regist the user"+err.Error(), 400)

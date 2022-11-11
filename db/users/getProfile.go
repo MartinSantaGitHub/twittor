@@ -1,12 +1,9 @@
 package users
 
 import (
-	"context"
 	"db"
-	"helpers"
 	"log"
 	"models"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,13 +11,9 @@ import (
 
 /* GetProfile Gets a profile in the DB */
 func GetProfile(Id string) (models.User, error) {
-	timeout, _ := time.ParseDuration(helpers.GetEnvVariable("DB_TIMEOUT"))
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	col, ctx, cancel := db.GetCollection("twittor", "users")
 
 	defer cancel()
-
-	database := db.MongoConnection.Database("twittor")
-	col := database.Collection("users")
 
 	var profile models.User
 

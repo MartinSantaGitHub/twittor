@@ -2,12 +2,15 @@ package tweets
 
 import (
 	"encoding/json"
+	"helpers"
 	"jwt"
 	"net/http"
+	"strconv"
 	"time"
 
 	db "db/tweets"
 	"models"
+	mr "models/response"
 )
 
 /* InsertTweet permits to insert a tweet in the DB */
@@ -49,4 +52,61 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+/* Get Get a user's tweets */
+func Get(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+
+	if len(id) < 1 {
+		http.Error(w, "The id param is required", http.StatusBadRequest)
+
+		return
+	}
+
+	pageQuery := r.URL.Query().Get("page")
+
+	if len(pageQuery) < 1 {
+		pageQuery = "1"
+	}
+
+	limitQuery := r.URL.Query().Get("limit")
+
+	if len(limitQuery) < 1 {
+		limitQuery = helpers.GetEnvVariable("TWEETS_GET_LIMIT")
+	}
+
+	page, err := strconv.ParseInt(pageQuery, 10, 64)
+
+	if err != nil {
+		http.Error(w, "The page param is invalid", http.StatusBadRequest)
+
+		return
+	}
+
+	limit, err := strconv.ParseInt(limitQuery, 10, 64)
+
+	if err != nil {
+		http.Error(w, "The limit param is invalid", http.StatusBadRequest)
+
+		return
+	}
+
+	results, total, success := db.GetTweets(id, page, limit)
+
+	if !success {
+		http.Error(w, "An error has happened trying to get the tweets from the DB "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := mr.TweetsResponse{
+		Tweets: results,
+		Total:  total,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }

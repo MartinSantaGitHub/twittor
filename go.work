@@ -12,7 +12,6 @@ use (
 	./jwt
 	./middlewares
 	./models
-	./models/request
 	./models/response
 	./routes/tweets
 	./routes/users
