@@ -5,7 +5,8 @@ import (
 	"helpers"
 	"log"
 	"net/http"
-	users "routes/users"
+	"routes/tweets"
+	"routes/users"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -21,10 +22,14 @@ func Handlers() {
 
 	router.HandleFunc("/", home)
 
-	users.Registry(router)
+	// Register Users endpoints
+	users.Insert(router)
 	users.Login(router)
 	users.GetProfile(router)
-	users.ModifyRegistry(router)
+	users.Modify(router)
+
+	// Register Tweets endpoints
+	tweets.Insert(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)

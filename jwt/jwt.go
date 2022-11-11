@@ -1,13 +1,13 @@
 package jwt
 
 import (
-	"db"
 	"errors"
 	"helpers"
 	"models"
-	mr "models/response"
 	"strings"
 	"time"
+
+	db "db/users"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -44,9 +44,9 @@ func GenerateJWT(user models.User) (string, error) {
 }
 
 /* ProcessJWT process the JWT received in the request */
-func ProcessJWT(token string) (*mr.Claim, bool, string, error) {
+func ProcessJWT(token string) (*models.Claim, bool, string, error) {
 	myKey := []byte(helpers.GetEnvVariable("JWT_SIGNING_KEY"))
-	claims := &mr.Claim{}
+	claims := &models.Claim{}
 	splitToken := strings.Split(token, "Bearer")
 
 	if len(splitToken) != 2 {

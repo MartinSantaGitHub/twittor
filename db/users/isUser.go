@@ -1,0 +1,34 @@
+package users
+
+import (
+	"context"
+	"db"
+	"helpers"
+	"models"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+)
+
+/* IsUser checks that the user already exists in the DB */
+func IsUser(email string) (models.User, bool, string) {
+	timeout, _ := time.ParseDuration(helpers.GetEnvVariable("DB_TIMEOUT"))
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+
+	database := db.MongoConnection.Database("twittor")
+	col := database.Collection("users")
+	condition := bson.M{"email": email}
+
+	var result models.User
+
+	err := col.FindOne(ctx, condition).Decode(&result)
+	id := result.Id.Hex()
+
+	if err != nil {
+		return result, false, id
+	}
+
+	return result, true, id
+}

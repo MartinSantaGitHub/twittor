@@ -1,18 +1,19 @@
 package users
 
 import (
-	"db"
 	"encoding/json"
 	"helpers"
 	"jwt"
 	"models"
-	mr "models/response"
 	"net/http"
 	"time"
+
+	db "db/users"
+	mr "models/response"
 )
 
-/* Registry Permits to create a user in the DB */
-func Registry(w http.ResponseWriter, r *http.Request) {
+/* Insert Permits to create a user in the DB */
+func Insert(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
 
 	if len(user.Password) < 6 {
@@ -105,8 +106,8 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profile)
 }
 
-/* ModifyRegistry Allows to modify a registry */
-func ModifyRegistry(w http.ResponseWriter, r *http.Request) {
+/* Modify Allows to modify a registry */
+func Modify(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 
 	err := json.NewDecoder(r.Body).Decode(&user)
