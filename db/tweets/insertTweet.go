@@ -18,6 +18,7 @@ func InsertTweet(tweet models.Tweet) (string, bool, error) {
 		"userId":  tweet.UserId,
 		"message": tweet.Message,
 		"date":    tweet.Date,
+		"active":  true,
 	}
 
 	result, err := col.InsertOne(ctx, registry)

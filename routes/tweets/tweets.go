@@ -13,7 +13,12 @@ func Insert(router *mux.Router) {
 	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.Insert, middlewares.CheckDB, middlewares.ValidateJWT)).Methods("POST")
 }
 
-/* Get Gets an user's tweets */
-func Get(router *mux.Router) {
-	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.Get, middlewares.CheckDB, middlewares.ValidateJWT)).Methods("GET")
+/* GetTweets Gets an user's tweets */
+func GetTweets(router *mux.Router) {
+	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.GetTweets, middlewares.CheckDB, middlewares.ValidateJWT)).Methods("GET")
+}
+
+/* Delete Deletes an user's tweet */
+func Delete(router *mux.Router) {
+	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.Delete, middlewares.CheckDB, middlewares.ValidateJWT)).Methods("DELETE")
 }

@@ -28,6 +28,7 @@ func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool
 
 	condition := bson.M{
 		"userId": id,
+		"active": true,
 	}
 
 	total, err := col.CountDocuments(ctxCount, condition)

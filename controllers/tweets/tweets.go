@@ -54,8 +54,8 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-/* Get Get a user's tweets */
-func Get(w http.ResponseWriter, r *http.Request) {
+/* GetTweets GetTweets a user's tweets */
+func GetTweets(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 
 	if len(id) < 1 {
@@ -109,4 +109,26 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+/* Delete Deletes a tweet that belongs to an user */
+func Delete(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+
+	if len(id) < 1 {
+		http.Error(w, "The id param is required", http.StatusBadRequest)
+
+		return
+	}
+
+	err := db.DeleteLogic(id, jwt.UserId)
+
+	if err != nil {
+		http.Error(w, "An error occurred trying to delete the tweet "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	//w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
 }
