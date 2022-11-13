@@ -40,6 +40,8 @@ func DeleteLogic(id string, userId string) error {
 		"$set": bson.M{"active": false},
 	}
 
+	// Also map[string]bool{"active": false} in the updateString
+
 	_, err := col.UpdateOne(ctx, condition, updateString)
 
 	return err

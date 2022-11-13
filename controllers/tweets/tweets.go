@@ -56,13 +56,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 
 /* GetTweets GetTweets a user's tweets */
 func GetTweets(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-
-	if len(id) < 1 {
-		http.Error(w, "The id param is required", http.StatusBadRequest)
-
-		return
-	}
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
 
 	pageQuery := r.URL.Query().Get("page")
 
@@ -113,14 +107,7 @@ func GetTweets(w http.ResponseWriter, r *http.Request) {
 
 /* Delete Deletes a tweet that belongs to an user */
 func Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-
-	if len(id) < 1 {
-		http.Error(w, "The id param is required", http.StatusBadRequest)
-
-		return
-	}
-
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
 	err := db.DeleteLogic(id, jwt.UserId)
 
 	if err != nil {

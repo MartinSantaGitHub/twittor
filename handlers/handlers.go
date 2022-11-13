@@ -27,6 +27,10 @@ func Handlers() {
 	users.Login(router)
 	users.GetProfile(router)
 	users.Modify(router)
+	users.UploadAvatar(router)
+	users.UploadBanner(router)
+	users.GetAvatar(router)
+	users.GetBanner(router)
 
 	// Register Tweets endpoints
 	tweets.Insert(router)

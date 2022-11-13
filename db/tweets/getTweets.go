@@ -4,7 +4,6 @@ import (
 	"context"
 	"db"
 	"log"
-	"time"
 
 	"helpers"
 	"models"
@@ -15,8 +14,7 @@ import (
 
 /* Get Get a user's tweets from the DB */
 func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool) {
-	timeout, _ := time.ParseDuration(helpers.GetEnvVariable("DB_TIMEOUT"))
-	ctxCount, cancelCount := context.WithTimeout(context.Background(), timeout)
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	col, ctx, cancel := db.GetCollection("twittor", "tweet")
 
 	defer func() {

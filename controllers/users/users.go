@@ -2,12 +2,17 @@ package users
 
 import (
 	"encoding/json"
+	"fmt"
 	"helpers"
 	"jwt"
+	"mime/multipart"
 	"models"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	fc "controllers/files"
 	db "db/users"
 	mr "models/response"
 )
@@ -86,14 +91,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 /* GetProfile Gets an user profile */
 func GetProfile(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-
-	if len(id) < 1 {
-		http.Error(w, "Missing parameter id", http.StatusBadRequest)
-
-		return
-	}
-
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
 	profile, err := db.GetProfile(id)
 
 	if err != nil {
@@ -133,4 +131,214 @@ func Modify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+/* Upload Uploads an user's avatar */
+func UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	file, header, err := fc.GetRequestFile("avatar", r)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	filename := ""
+
+	if isRemote {
+		var profile models.User
+
+		profile, err = db.GetProfile(jwt.UserId)
+
+		if err != nil {
+			http.Error(w, "User not found", http.StatusNotFound)
+
+			return
+		}
+
+		filename, err = uploadRemote(file, profile.Avatar, "avatar")
+	} else {
+		filename, err = uploadLocal("uploads/avatars", header, file)
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	user := models.User{
+		Avatar: filename,
+	}
+
+	err = saveToDB(user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+/* Upload Uploads an user's banner */
+func UploadBanner(w http.ResponseWriter, r *http.Request) {
+	file, header, err := fc.GetRequestFile("banner", r)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	filename := ""
+
+	if isRemote {
+		var profile models.User
+
+		profile, err = db.GetProfile(jwt.UserId)
+
+		if err != nil {
+			http.Error(w, "User not found", http.StatusNotFound)
+
+			return
+		}
+
+		filename, err = uploadRemote(file, profile.Banner, "banner")
+	} else {
+		filename, err = uploadLocal("uploads/banners", header, file)
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	user := models.User{
+		Banner: filename,
+	}
+
+	err = saveToDB(user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+/* GetAvatar Gets the user's file avatar */
+func GetAvatar(w http.ResponseWriter, r *http.Request) {
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	profile, err := db.GetProfile(id)
+
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+
+		return
+	}
+
+	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	filepath := profile.Avatar
+
+	if !isRemote {
+		filepath = fmt.Sprintf("uploads/avatars/%s", profile.Avatar)
+	}
+
+	err = fc.SetFileToResponse(filepath, w, isRemote)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	// This line is optional because the response defaults to 200 OK
+	//w.WriteHeader(http.StatusOK)
+}
+
+/* GetBanner Gets the user's file banner */
+func GetBanner(w http.ResponseWriter, r *http.Request) {
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	profile, err := db.GetProfile(id)
+
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+
+		return
+	}
+
+	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	filepath := profile.Banner
+
+	if !isRemote {
+		filepath = fmt.Sprintf("uploads/banners/%s", profile.Banner)
+	}
+
+	err = fc.SetFileToResponse(filepath, w, isRemote)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	// This line is optional because the response defaults to 200 OK
+	//w.WriteHeader(http.StatusOK)
+}
+
+func uploadLocal(filepath string, header *multipart.FileHeader, file multipart.File) (string, error) {
+	extension := strings.Split(header.Filename, ".")[1]
+	filename := fmt.Sprintf("%s.%s", jwt.UserId, extension)
+	filepath = fmt.Sprintf("%s/%s", filepath, filename)
+
+	err := helpers.UploadFileLocal(filepath, file)
+
+	if err != nil {
+		return "", err
+	}
+
+	return filename, nil
+}
+
+func uploadRemote(file multipart.File, fileUrl string, tag string) (string, error) {
+	publicId := fmt.Sprintf("%s-%s", jwt.UserId, tag)
+
+	if fileUrl != "" {
+		err := helpers.DestroyRemote(publicId)
+
+		if err != nil {
+			return "", err
+		}
+	}
+
+	fileUrl, err := helpers.UploadRemote(file, publicId)
+
+	if err != nil {
+		return "", err
+	}
+
+	return fileUrl, nil
+}
+
+func saveToDB(user models.User) error {
+	status, err := db.ModifyRegistry(user, jwt.UserId)
+
+	if err != nil || !status {
+		return fmt.Errorf("Error when saving the file in the DB: " + err.Error())
+	}
+
+	return nil
 }
