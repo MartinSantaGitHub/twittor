@@ -2,6 +2,7 @@ package users
 
 import (
 	"db"
+	"helpers"
 	"log"
 	"models"
 
@@ -11,18 +12,18 @@ import (
 
 /* GetProfile Gets a profile in the DB */
 func GetProfile(Id string) (models.User, error) {
-	col, ctx, cancel := db.GetCollection("twittor", "users")
-
-	defer cancel()
-
 	var profile models.User
 
+	col := db.GetCollection("twittor", "users")
 	objId, _ := primitive.ObjectIDFromHex(Id)
 	condition := bson.M{
 		"_id": objId,
 	}
 
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	err := col.FindOne(ctx, condition).Decode(&profile)
+
+	defer cancel()
 
 	if err != nil {
 		log.Println("Registry not found: " + err.Error())

@@ -35,6 +35,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		UserId:  jwt.UserId,
 		Message: tweet.Message,
 		Date:    time.Now(),
+		Active:  true,
 	}
 
 	_, status, err := db.InsertTweet(registry)
@@ -108,7 +109,7 @@ func GetTweets(w http.ResponseWriter, r *http.Request) {
 /* Delete Deletes a tweet that belongs to an user */
 func Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	err := db.DeleteLogic(id, jwt.UserId)
+	err := db.DeleteLogical(id)
 
 	if err != nil {
 		http.Error(w, "An error occurred trying to delete the tweet "+err.Error(), http.StatusInternalServerError)

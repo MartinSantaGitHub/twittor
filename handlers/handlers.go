@@ -5,6 +5,7 @@ import (
 	"helpers"
 	"log"
 	"net/http"
+	"routes/relations"
 	"routes/tweets"
 	"routes/users"
 
@@ -20,6 +21,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 func Handlers() {
 	router := mux.NewRouter()
 
+	// Register Home page service
 	router.HandleFunc("/", home)
 
 	// Register Users endpoints
@@ -36,6 +38,10 @@ func Handlers() {
 	tweets.Insert(router)
 	tweets.GetTweets(router)
 	tweets.Delete(router)
+
+	// Register Relations endpoints
+	relations.Insert(router)
+	relations.Delete(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)

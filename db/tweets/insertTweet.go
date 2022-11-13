@@ -2,26 +2,19 @@ package tweets
 
 import (
 	"db"
+	"helpers"
 	"models"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /* InsertTweet Insert a tweet in the DB */
 func InsertTweet(tweet models.Tweet) (string, bool, error) {
-	col, ctx, cancel := db.GetCollection("twittor", "tweet")
+	col := db.GetCollection("twittor", "tweet")
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	result, err := col.InsertOne(ctx, tweet)
 
 	defer cancel()
-
-	registry := bson.M{
-		"userId":  tweet.UserId,
-		"message": tweet.Message,
-		"date":    tweet.Date,
-		"active":  true,
-	}
-
-	result, err := col.InsertOne(ctx, registry)
 
 	if err != nil {
 		return "", false, err

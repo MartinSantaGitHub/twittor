@@ -2,6 +2,7 @@ package users
 
 import (
 	"db"
+	"helpers"
 	"models"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -10,10 +11,7 @@ import (
 
 /* ModifyRegistry modifies a registry in the DB */
 func ModifyRegistry(user models.User, id string) (bool, error) {
-	col, ctx, cancel := db.GetCollection("twittor", "users")
-
-	defer cancel()
-
+	col := db.GetCollection("twittor", "users")
 	registry := make(map[string]interface{})
 
 	if len(user.Name) > 0 {
@@ -54,8 +52,11 @@ func ModifyRegistry(user models.User, id string) (bool, error) {
 	filter := bson.M{"_id": objId}
 	//filter := bson.M{"_id": bson.M{"$eq": objId}}
 
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	_, err := col.UpdateOne(ctx, filter, updateString)
 	//_, err := col.UpdateByID(ctx, objId, updateString)
+
+	defer cancel()
 
 	if err != nil {
 		return false, err

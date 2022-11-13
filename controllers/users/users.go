@@ -22,7 +22,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
 
 	if len(user.Password) < 6 {
-		http.Error(w, "The password must have at least 6 characters", 400)
+		http.Error(w, "The password must have at least 6 characters", http.StatusBadRequest)
 
 		return
 	}
@@ -30,7 +30,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	_, isFound, _ := db.IsUser(user.Email)
 
 	if isFound {
-		http.Error(w, "The user already exists", 400)
+		http.Error(w, "The user already exists", http.StatusBadRequest)
 
 		return
 	}
@@ -38,13 +38,13 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	_, status, err := db.InsertUser(user)
 
 	if err != nil {
-		http.Error(w, "There was an error trying to regist the user"+err.Error(), 400)
+		http.Error(w, "There was an error trying to regist the user"+err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
 	if !status {
-		http.Error(w, "The user registry could not be inserted into the DB", 400)
+		http.Error(w, "The user registry could not be inserted into the DB", http.StatusBadRequest)
 
 		return
 	}
@@ -58,7 +58,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	userDb, isUser := db.TryLogin(user.Email, user.Password)
 
 	if !isUser {
-		http.Error(w, "User and/or password invalid", 400)
+		http.Error(w, "User and/or password invalid", http.StatusBadRequest)
 
 		return
 	}
@@ -66,7 +66,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	jwtKey, err := jwt.GenerateJWT(userDb)
 
 	if err != nil {
-		http.Error(w, "Something went wrong"+err.Error(), 500)
+		http.Error(w, "Something went wrong"+err.Error(), http.StatusInternalServerError)
 
 		return
 	}

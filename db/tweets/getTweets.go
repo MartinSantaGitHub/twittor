@@ -14,22 +14,18 @@ import (
 
 /* Get Get a user's tweets from the DB */
 func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool) {
-	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	col, ctx, cancel := db.GetCollection("twittor", "tweet")
-
-	defer func() {
-		cancelCount()
-		cancel()
-	}()
-
 	var results []*models.Tweet
 
+	col := db.GetCollection("twittor", "tweet")
 	condition := bson.M{
 		"userId": id,
 		"active": true,
 	}
 
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	total, err := col.CountDocuments(ctxCount, condition)
+
+	defer cancelCount()
 
 	if err != nil {
 		log.Fatal(err.Error())
@@ -43,7 +39,10 @@ func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool
 	opts.SetSort(bson.D{{Key: "date", Value: -1}})
 	opts.SetSkip((page - 1) * limit)
 
-	cursor, err := col.Find(ctx, condition, opts)
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	cursor, err := col.Find(ctxFind, condition, opts)
+
+	defer cancelFind()
 
 	if err != nil {
 		log.Fatal(err.Error())

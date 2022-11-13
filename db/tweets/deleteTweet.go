@@ -2,47 +2,45 @@ package tweets
 
 import (
 	"db"
-	"jwt"
+	"helpers"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /* Delete Deletes a tweet in the DB */
-func DeleteFisical(id string, userId string) error {
-	col, ctx, cancel := db.GetCollection("twittor", "tweet")
-
-	defer cancel()
-
+func DeleteFisical(id string) error {
+	col := db.GetCollection("twittor", "tweet")
 	objId, _ := primitive.ObjectIDFromHex(id)
 	condition := bson.M{
-		"_id":    objId,
-		"userId": jwt.UserId,
+		"_id": objId,
 	}
 
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	_, err := col.DeleteOne(ctx, condition)
+
+	defer cancel()
 
 	return err
 }
 
-/* DeleteLogic Inactivates a tweet in the DB */
-func DeleteLogic(id string, userId string) error {
-	col, ctx, cancel := db.GetCollection("twittor", "tweet")
-
-	defer cancel()
-
+/* DeleteLogical Inactivates a tweet in the DB */
+func DeleteLogical(id string) error {
+	col := db.GetCollection("twittor", "tweet")
 	objId, _ := primitive.ObjectIDFromHex(id)
 	condition := bson.M{
-		"_id":    objId,
-		"userId": jwt.UserId,
+		"_id": objId,
 	}
 	updateString := bson.M{
 		"$set": bson.M{"active": false},
 	}
 
-	// Also map[string]bool{"active": false} in the updateString
+	// Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
 
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	_, err := col.UpdateOne(ctx, condition, updateString)
+
+	defer cancel()
 
 	return err
 }
