@@ -66,7 +66,7 @@ func DestroyRemote(publicId string) error {
 }
 
 /* GetFileLocal Gets a file form the local server */
-func GetFileLocal(filepath string) (*os.File, error) {
+func GetFileLocal(filepath string) (io.ReadCloser, error) {
 	file, err := os.Open(filepath)
 
 	if err != nil {
