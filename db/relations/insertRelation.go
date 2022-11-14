@@ -8,7 +8,6 @@ import (
 	"models"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 /* InsertRelation Creates a relation into the DB */
@@ -17,26 +16,19 @@ func InsertRelation(relation models.Relation) error {
 	var err error
 
 	col := db.GetCollection("twittor", "relation")
-	condition := bson.M{
-		"userId":         relation.UserId,
-		"userRelationId": relation.UserRelationId,
-	}
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	err = col.FindOne(ctxFind, condition).Decode(&relationDb)
-
-	defer cancelFind()
+	isRelation, relationDb, err := IsRelation(relation)
 
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			ctxInsert, cancelInsert := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-			_, err = col.InsertOne(ctxInsert, relation)
+		return err
+	}
 
-			defer cancelInsert()
+	if !isRelation {
+		ctxInsert, cancelInsert := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+		_, err = col.InsertOne(ctxInsert, relation)
 
-			return err
-		} else {
-			return err
-		}
+		defer cancelInsert()
+
+		return err
 	}
 
 	if relationDb.Active {

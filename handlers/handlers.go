@@ -42,6 +42,7 @@ func Handlers() {
 	// Register Relations endpoints
 	relations.Insert(router)
 	relations.Delete(router)
+	relations.IsRelation(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)
