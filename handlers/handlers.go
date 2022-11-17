@@ -43,6 +43,7 @@ func Handlers() {
 	relations.Insert(router)
 	relations.Delete(router)
 	relations.IsRelation(router)
+	relations.GetUsers(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)

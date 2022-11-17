@@ -9,8 +9,6 @@ import (
 func main() {
 	if !db.IsConnection() {
 		log.Fatal("No connection to the DB")
-
-		return
 	}
 
 	handlers.Handlers()

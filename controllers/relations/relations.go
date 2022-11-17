@@ -6,19 +6,27 @@ import (
 	"net/http"
 	"strings"
 
+	db "db/relations"
 	"helpers"
 	"jwt"
 	"models"
 	mr "models/response"
 
-	db "db/relations"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /* Creates a new relation between two users */
 func Create(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	relation := getRelationModel(id)
-	err := db.InsertRelation(relation)
+	relation, err := getRelationModel(id)
+
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	err = db.InsertRelation(relation)
 
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -39,8 +47,15 @@ func Create(w http.ResponseWriter, r *http.Request) {
 /* Delete Deletes a relation */
 func Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	relation := getRelationModel(id)
-	err := db.DeleteLogical(relation)
+	relation, err := getRelationModel(id)
+
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	err = db.DeleteLogical(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to delete a relation: %s", err.Error()), http.StatusInternalServerError)
@@ -54,7 +69,14 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 /* IsRelation check if exist a relation */
 func IsRelation(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	relation := getRelationModel(id)
+	relation, err := getRelationModel(id)
+
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
 	isRelation, _, err := db.IsRelation(relation)
 
 	if err != nil {
@@ -71,12 +93,65 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getRelationModel(userRelationId string) models.Relation {
+/* GetUsers Gets a list of users */
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	var results []*models.User
+	var total int64
+	var err error
+
+	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
+	limit := r.Context().Value(helpers.RequestLimitKey{}).(int64)
+	search := r.URL.Query().Get("search")
+	searchType := r.URL.Query().Get("type")
+
+	switch searchType {
+
+	case "new":
+		results, total, err = db.GetNotFollowers(jwt.UserId, page, limit, search)
+	case "follow":
+		results, total, err = db.GetFollowers(jwt.UserId, page, limit, search)
+	default:
+		http.Error(w, "Invalid type param value. It has to be \"follow\" or \"new\"", http.StatusBadRequest)
+
+		return
+	}
+
+	//results, total, err = db.GetUsers(jwt.UserId, page, limit, search, searchType)
+
+	if err != nil {
+		http.Error(w, "Error getting the users: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := mr.RelationUsersResponse{
+		Users: results,
+		Total: total,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func getRelationModel(userRelationId string) (models.Relation, error) {
 	var relation models.Relation
 
-	relation.UserId = jwt.UserId
-	relation.UserRelationId = userRelationId
+	if jwt.UserId == userRelationId {
+		return relation, fmt.Errorf("relation with oneself not allowed (userId and userRelationId are the same)")
+	}
+
+	userId, _ := primitive.ObjectIDFromHex(jwt.UserId)
+	uRelationId, err := primitive.ObjectIDFromHex(userRelationId)
+
+	if err != nil {
+		return relation, fmt.Errorf("userRelationId: not a valid mongo id format")
+	}
+
+	relation.UserId = userId
+	relation.UserRelationId = uRelationId
 	relation.Active = true
 
-	return relation
+	return relation, nil
 }

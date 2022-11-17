@@ -31,3 +31,11 @@ func IsRelation(router *mux.Router) {
 		middlewares.ValidateJWT,
 		middlewares.ValidateQueryId)).Methods("GET")
 }
+
+/* GetUsers Gets a list of users */
+func GetUsers(router *mux.Router) {
+	router.HandleFunc("/relation/users", helpers.MultipleMiddleware(relations.GetUsers,
+		middlewares.CheckDB,
+		middlewares.ValidateJWT,
+		middlewares.ValidatePageLimit)).Methods("GET")
+}

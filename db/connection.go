@@ -2,8 +2,8 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"helpers"
-	"log"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -14,7 +14,7 @@ func connectDB() *mongo.Client {
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err.Error())
 
 		return client
 	}
@@ -22,12 +22,12 @@ func connectDB() *mongo.Client {
 	err = client.Ping(context.TODO(), nil)
 
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err.Error())
 
 		return client
 	}
 
-	log.Println("Connection successful to the DB")
+	fmt.Println("Connection successful to the DB")
 
 	return client
 }
@@ -40,7 +40,7 @@ func IsConnection() bool {
 	err := MongoConnection.Ping(context.TODO(), nil)
 
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err.Error())
 
 		return false
 	}

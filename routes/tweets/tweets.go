@@ -20,7 +20,8 @@ func GetTweets(router *mux.Router) {
 	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.GetTweets,
 		middlewares.CheckDB,
 		middlewares.ValidateJWT,
-		middlewares.ValidateQueryId)).Methods("GET")
+		middlewares.ValidateQueryId,
+		middlewares.ValidatePageLimit)).Methods("GET")
 }
 
 /* Delete Deletes an user's tweet */

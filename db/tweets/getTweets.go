@@ -3,7 +3,6 @@ package tweets
 import (
 	"context"
 	"db"
-	"log"
 
 	"helpers"
 	"models"
@@ -13,7 +12,7 @@ import (
 )
 
 /* Get Get a user's tweets from the DB */
-func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool) {
+func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, error) {
 	var results []*models.Tweet
 
 	col := db.GetCollection("twittor", "tweet")
@@ -28,9 +27,7 @@ func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool
 	defer cancelCount()
 
 	if err != nil {
-		log.Fatal(err.Error())
-
-		return results, total, false
+		return results, total, err
 	}
 
 	opts := options.Find()
@@ -45,22 +42,18 @@ func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, bool
 	defer cancelFind()
 
 	if err != nil {
-		log.Fatal(err.Error())
-
-		return results, total, false
+		return results, total, err
 	}
 
-	for cursor.Next(context.TODO()) {
-		var registry models.Tweet
+	ctxCursor := context.TODO()
 
-		err := cursor.Decode(&registry)
+	defer cursor.Close(ctxCursor)
 
-		if err != nil {
-			return results, total, false
-		}
+	err = cursor.All(ctxCursor, &results)
 
-		results = append(results, &registry)
+	if err != nil {
+		return results, total, err
 	}
 
-	return results, total, true
+	return results, total, nil
 }

@@ -16,6 +16,7 @@ use (
 	./middlewares
 	./models
 	./models/response
+	./models/result
 	./routes/relations
 	./routes/tweets
 	./routes/users

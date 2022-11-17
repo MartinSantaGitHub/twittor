@@ -5,7 +5,6 @@ import (
 	"helpers"
 	"jwt"
 	"net/http"
-	"strconv"
 	"time"
 
 	db "db/tweets"
@@ -55,41 +54,15 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-/* GetTweets GetTweets a user's tweets */
+/* GetTweets Gets a user's tweets */
 func GetTweets(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
+	limit := r.Context().Value(helpers.RequestLimitKey{}).(int64)
 
-	pageQuery := r.URL.Query().Get("page")
-
-	if len(pageQuery) < 1 {
-		pageQuery = "1"
-	}
-
-	limitQuery := r.URL.Query().Get("limit")
-
-	if len(limitQuery) < 1 {
-		limitQuery = helpers.GetEnvVariable("TWEETS_GET_LIMIT")
-	}
-
-	page, err := strconv.ParseInt(pageQuery, 10, 64)
+	results, total, err := db.GetTweets(id, page, limit)
 
 	if err != nil {
-		http.Error(w, "The page param is invalid", http.StatusBadRequest)
-
-		return
-	}
-
-	limit, err := strconv.ParseInt(limitQuery, 10, 64)
-
-	if err != nil {
-		http.Error(w, "The limit param is invalid", http.StatusBadRequest)
-
-		return
-	}
-
-	results, total, success := db.GetTweets(id, page, limit)
-
-	if !success {
 		http.Error(w, "An error has happened trying to get the tweets from the DB "+err.Error(), http.StatusInternalServerError)
 
 		return
