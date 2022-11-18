@@ -175,7 +175,7 @@ func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(http.StatusOK)
 
 	if isOnlyTweets {
-		response = mr.OnlyTweetsResponse{
+		response = mr.TweetsResponse{
 			Tweets: results.([]*models.Tweet),
 			Total:  total,
 		}
