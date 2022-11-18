@@ -27,7 +27,7 @@ func ValidatePageLimit(next http.HandlerFunc) http.HandlerFunc {
 		limitQuery := r.URL.Query().Get("limit")
 
 		if len(limitQuery) < 1 {
-			limitQuery = helpers.GetEnvVariable("TWEETS_GET_LIMIT")
+			limitQuery = helpers.GetEnvVariable("RECORDS_LIMIT")
 		}
 
 		limit, err := strconv.ParseInt(limitQuery, 10, 64)
