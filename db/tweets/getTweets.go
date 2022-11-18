@@ -8,11 +8,12 @@ import (
 	"models"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 /* Get Get a user's tweets from the DB */
-func GetTweets(id string, page int64, limit int64) ([]*models.Tweet, int64, error) {
+func GetTweets(id primitive.ObjectID, page int64, limit int64) ([]*models.Tweet, int64, error) {
 	var results []*models.Tweet
 
 	col := db.GetCollection("twittor", "tweet")

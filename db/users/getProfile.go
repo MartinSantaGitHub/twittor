@@ -11,13 +11,13 @@ import (
 )
 
 /* GetProfile Gets a profile in the DB */
-func GetProfile(Id string) (models.User, error) {
+func GetProfile(id primitive.ObjectID) (models.User, error) {
 	var profile models.User
 
 	col := db.GetCollection("twittor", "users")
-	objId, _ := primitive.ObjectIDFromHex(Id)
+
 	condition := bson.M{
-		"_id": objId,
+		"_id": id,
 	}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))

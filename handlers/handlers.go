@@ -44,6 +44,7 @@ func Handlers() {
 	relations.Delete(router)
 	relations.IsRelation(router)
 	relations.GetUsers(router)
+	relations.GetUsersTweets(router)
 
 	PORT := helpers.GetEnvVariable("PORT")
 	handler := cors.AllowAll().Handler(router)

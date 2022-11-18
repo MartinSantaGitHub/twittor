@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	db "db/relations"
@@ -11,13 +12,14 @@ import (
 	"jwt"
 	"models"
 	mr "models/response"
+	mres "models/result"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /* Creates a new relation between two users */
 func Create(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	relation, err := getRelationModel(id)
 
 	if err != nil {
@@ -46,7 +48,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 /* Delete Deletes a relation */
 func Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	relation, err := getRelationModel(id)
 
 	if err != nil {
@@ -68,7 +70,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 
 /* IsRelation check if exist a relation */
 func IsRelation(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	relation, err := getRelationModel(id)
 
 	if err != nil {
@@ -104,12 +106,14 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	searchType := r.URL.Query().Get("type")
 
+	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
+
 	switch searchType {
 
 	case "new":
-		results, total, err = db.GetNotFollowers(jwt.UserId, page, limit, search)
+		results, total, err = db.GetNotFollowers(id, page, limit, search)
 	case "follow":
-		results, total, err = db.GetFollowers(jwt.UserId, page, limit, search)
+		results, total, err = db.GetFollowers(id, page, limit, search)
 	default:
 		http.Error(w, "Invalid type param value. It has to be \"follow\" or \"new\"", http.StatusBadRequest)
 
@@ -127,7 +131,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	response := mr.RelationUsersResponse{
+	response := mr.UsersResponse{
 		Users: results,
 		Total: total,
 	}
@@ -135,22 +139,67 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getRelationModel(userRelationId string) (models.Relation, error) {
+/* GetUsersTweets Returns the followers' tweets */
+func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
+	var response interface{}
+
+	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
+	limit := r.Context().Value(helpers.RequestLimitKey{}).(int64)
+	onlyTweets := r.URL.Query().Get("onlytweets")
+
+	if len(onlyTweets) < 1 {
+		onlyTweets = "false"
+	}
+
+	isOnlyTweets, err := strconv.ParseBool(onlyTweets)
+
+	if err != nil {
+		http.Error(w, "Invalid onlytweets param value. It has to be a boolean value", http.StatusBadRequest)
+
+		return
+	}
+
+	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
+
+	results, total, err := db.GetUsersTweets(id, page, limit, isOnlyTweets)
+
+	if err != nil {
+		http.Error(w, "Error getting the tweets: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	/* This is optional, the default status value is 200 OK */
+	//w.WriteHeader(http.StatusOK)
+
+	if isOnlyTweets {
+		response = mr.OnlyTweetsResponse{
+			Tweets: results.([]*models.Tweet),
+			Total:  total,
+		}
+	} else {
+		response = mr.UserTweetsResponse{
+			Tweets: results.([]*mres.UserTweet),
+			Total:  total,
+		}
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func getRelationModel(userRelationId primitive.ObjectID) (models.Relation, error) {
 	var relation models.Relation
 
-	if jwt.UserId == userRelationId {
+	userId, _ := primitive.ObjectIDFromHex(jwt.UserId)
+
+	if userId == userRelationId {
 		return relation, fmt.Errorf("relation with oneself not allowed (userId and userRelationId are the same)")
 	}
 
-	userId, _ := primitive.ObjectIDFromHex(jwt.UserId)
-	uRelationId, err := primitive.ObjectIDFromHex(userRelationId)
-
-	if err != nil {
-		return relation, fmt.Errorf("userRelationId: not a valid mongo id format")
-	}
-
 	relation.UserId = userId
-	relation.UserRelationId = uRelationId
+	relation.UserRelationId = userRelationId
 	relation.Active = true
 
 	return relation, nil

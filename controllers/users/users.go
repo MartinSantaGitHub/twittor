@@ -15,6 +15,8 @@ import (
 	fc "controllers/files"
 	db "db/users"
 	mr "models/response"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /* Insert Permits to create a user in the DB */
@@ -91,7 +93,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 /* GetProfile Gets an user profile */
 func GetProfile(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	profile, err := db.GetProfile(id)
 
 	if err != nil {
@@ -116,7 +118,8 @@ func Modify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, err := db.ModifyRegistry(user, jwt.UserId)
+	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
+	status, err := db.ModifyRegistry(id, user)
 
 	if err != nil {
 		http.Error(w, "An error has occurred when trying to modify the registry: "+err.Error(), http.StatusBadRequest)
@@ -149,7 +152,9 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if isRemote {
 		var profile models.User
 
-		profile, err = db.GetProfile(jwt.UserId)
+		id, _ := primitive.ObjectIDFromHex(jwt.UserId)
+
+		profile, err = db.GetProfile(id)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -199,7 +204,9 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 	if isRemote {
 		var profile models.User
 
-		profile, err = db.GetProfile(jwt.UserId)
+		id, _ := primitive.ObjectIDFromHex(jwt.UserId)
+
+		profile, err = db.GetProfile(id)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -241,7 +248,7 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 
 /* GetAvatar Gets the user's file avatar */
 func GetAvatar(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	profile, err := db.GetProfile(id)
 
 	if err != nil {
@@ -271,7 +278,7 @@ func GetAvatar(w http.ResponseWriter, r *http.Request) {
 
 /* GetBanner Gets the user's file banner */
 func GetBanner(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	profile, err := db.GetProfile(id)
 
 	if err != nil {
@@ -334,7 +341,8 @@ func uploadRemote(file multipart.File, fileUrl string, tag string) (string, erro
 }
 
 func saveToDB(user models.User) error {
-	status, err := db.ModifyRegistry(user, jwt.UserId)
+	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
+	status, err := db.ModifyRegistry(id, user)
 
 	if err != nil || !status {
 		return fmt.Errorf("Error when saving the file in the DB: " + err.Error())

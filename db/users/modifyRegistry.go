@@ -10,7 +10,7 @@ import (
 )
 
 /* ModifyRegistry modifies a registry in the DB */
-func ModifyRegistry(user models.User, id string) (bool, error) {
+func ModifyRegistry(id primitive.ObjectID, user models.User) (bool, error) {
 	col := db.GetCollection("twittor", "users")
 	registry := make(map[string]interface{})
 
@@ -48,8 +48,7 @@ func ModifyRegistry(user models.User, id string) (bool, error) {
 		"$set": registry,
 	}
 
-	objId, _ := primitive.ObjectIDFromHex(id)
-	filter := bson.M{"_id": objId}
+	filter := bson.M{"_id": id}
 	//filter := bson.M{"_id": bson.M{"$eq": objId}}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))

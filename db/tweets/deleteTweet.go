@@ -9,11 +9,11 @@ import (
 )
 
 /* Delete Deletes a tweet in the DB */
-func DeleteFisical(id string) error {
+func DeleteFisical(id primitive.ObjectID) error {
 	col := db.GetCollection("twittor", "tweet")
-	objId, _ := primitive.ObjectIDFromHex(id)
+
 	condition := bson.M{
-		"_id": objId,
+		"_id": id,
 	}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
@@ -25,11 +25,11 @@ func DeleteFisical(id string) error {
 }
 
 /* DeleteLogical Inactivates a tweet in the DB */
-func DeleteLogical(id string) error {
+func DeleteLogical(id primitive.ObjectID) error {
 	col := db.GetCollection("twittor", "tweet")
-	objId, _ := primitive.ObjectIDFromHex(id)
+
 	condition := bson.M{
-		"_id": objId,
+		"_id": id,
 	}
 	updateString := bson.M{
 		"$set": bson.M{"active": false},

@@ -10,6 +10,8 @@ import (
 	db "db/tweets"
 	"models"
 	mr "models/response"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /* InsertTweet permits to insert a tweet in the DB */
@@ -30,8 +32,10 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	objId, _ := primitive.ObjectIDFromHex(jwt.UserId)
+
 	registry := models.Tweet{
-		UserId:  jwt.UserId,
+		UserId:  objId,
 		Message: tweet.Message,
 		Date:    time.Now(),
 		Active:  true,
@@ -56,7 +60,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 
 /* GetTweets Gets a user's tweets */
 func GetTweets(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
 	limit := r.Context().Value(helpers.RequestLimitKey{}).(int64)
 
@@ -81,7 +85,7 @@ func GetTweets(w http.ResponseWriter, r *http.Request) {
 
 /* Delete Deletes a tweet that belongs to an user */
 func Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
 	err := db.DeleteLogical(id)
 
 	if err != nil {
