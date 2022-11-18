@@ -50,13 +50,15 @@ func GetUsersTweets(id primitive.ObjectID, page int64, limit int64, isOnlyTweets
 				"message": "$tweet.message",
 				"date":    "$tweet.date",
 			}})
+		conditions = append(conditions, bson.M{"$sort": bson.M{"date": -1}})
+	} else {
+		conditions = append(conditions, bson.M{"$sort": bson.M{"tweet.date": -1}})
 	}
 
 	conditionsCount = append(conditionsCount, conditions...)
 	conditionsCount = append(conditionsCount, bson.M{"$count": "total"})
 
 	conditionsAgg = append(conditionsAgg, conditions...)
-	conditionsAgg = append(conditionsAgg, bson.M{"$sort": bson.M{"date": -1}})
 	conditionsAgg = append(conditionsAgg, bson.M{"$skip": skip})
 	conditionsAgg = append(conditionsAgg, bson.M{"$limit": limit})
 
