@@ -163,26 +163,28 @@ func GetNotFollowers(id primitive.ObjectID, page int64, limit int64, search stri
 		"pipeline": []interface{}{bson.M{
 			"$match": bson.M{
 				"$expr": bson.M{
-					"$and": []interface{}{bson.M{
-						"$not": bson.M{
-							"$in": []string{"$_id", "$$userId"}}},
-						bson.M{
-							"$not": bson.M{
-								"$in": []string{"$_id", "$$id"}}},
-					},
+					"$not": bson.M{"$in": []interface{}{
+						"$_id",
+						"$$userId",
+					}},
 				}},
 		}},
 	}}
 	projectArray := bson.M{"$project": bson.M{"u": "$u", "_id": 0}}
 	unwind := bson.M{"$unwind": bson.M{
 		"path":                       "$u",
-		"preserveNullAndEmptyArrays": false}}
+		"preserveNullAndEmptyArrays": false,
+	}}
 	projectUser := bson.M{"$project": bson.M{
 		"_id":       "$u._id",
 		"name":      "$u.name",
 		"lastName":  "$u.lastName",
-		"birthDate": "$u.birthDate"}}
-	matchName := bson.M{"$match": bson.M{"name": bson.M{"$regex": search, "$options": "im"}}}
+		"birthDate": "$u.birthDate",
+	}}
+	matchName := bson.M{"$match": bson.M{
+		"_id":  bson.M{"$ne": id},
+		"name": bson.M{"$regex": search, "$options": "im"},
+	}}
 	count := bson.M{"$count": "total"}
 	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
 	skip := bson.M{"$skip": (page - 1) * limit}
