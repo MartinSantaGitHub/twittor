@@ -173,4 +173,12 @@ func (db *DbSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets
 	return results, total, err
 }
 
+// func (db *DbSql) GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error) {
+// 	var results []*mr.User
+
+// 	log.Fatal("Method not implemented")
+
+// 	return results, 0, nil
+// }
+
 // endregion

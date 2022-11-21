@@ -565,10 +565,13 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 
 	defer cursor.Close(ctxCursor)
 
-	var found, include bool
+	var include, isRelation bool
 
 	for cursor.Next(ctxCursor) {
 		var result m.User
+
+		isRelation = false
+		include = false
 
 		err := cursor.Decode(&result)
 
@@ -584,17 +587,19 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 			Active:         true,
 		}
 
-		found, _, err = db.GetRelation(relationRequest)
+		found, relationDb, err := db.GetRelation(relationRequest)
 
 		if err != nil {
 			return results, total, err
 		}
 
-		include = false
+		if found {
+			isRelation = relationDb.Active
+		}
 
 		if relationRequest.UserRelationId == id {
 			include = false
-		} else if (searchType == "new" && !found) || (searchType == "follow" && found) {
+		} else if (searchType == "new" && !isRelation) || (searchType == "follow" && isRelation) {
 			include = true
 		}
 

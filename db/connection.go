@@ -37,6 +37,7 @@ type DbAdapter interface {
 	GetFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
 	GetNotFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
 	GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error)
+	//GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error)
 }
 
 func getDataBaseConnector(dbType string) DbAdapter {
