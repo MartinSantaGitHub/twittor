@@ -2,8 +2,8 @@ package jwt
 
 import (
 	"db"
-	"helpers"
 	mr "models/request"
+	"os"
 
 	"errors"
 	"strings"
@@ -20,7 +20,7 @@ var UserId string
 
 /* GenerateJWT generates the encryption with JWT */
 func GenerateJWT(user mr.User) (string, error) {
-	myKey := []byte(helpers.GetEnvVariable("JWT_SIGNING_KEY"))
+	myKey := []byte(os.Getenv("JWT_SIGNING_KEY"))
 	payload := jwt.MapClaims{
 		"email":      user.Email,
 		"name":       user.Name,
@@ -45,7 +45,7 @@ func GenerateJWT(user mr.User) (string, error) {
 
 /* ProcessJWT process the JWT received in the request */
 func ProcessJWT(token string) (*mr.Claim, error) {
-	myKey := []byte(helpers.GetEnvVariable("JWT_SIGNING_KEY"))
+	myKey := []byte(os.Getenv("JWT_SIGNING_KEY"))
 	claims := &mr.Claim{}
 	splitToken := strings.Split(token, "Bearer")
 

@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"fmt"
-	"helpers"
 	"log"
 	"net/http"
+	"os"
 	"routes/relations"
 	"routes/tweets"
 	"routes/users"
@@ -46,7 +46,7 @@ func Handlers() {
 	relations.GetUsers(router)
 	relations.GetUsersTweets(router)
 
-	PORT := helpers.GetEnvVariable("PORT")
+	PORT := os.Getenv("PORT")
 	handler := cors.AllowAll().Handler(router)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", PORT), handler))

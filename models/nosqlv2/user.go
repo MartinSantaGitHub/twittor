@@ -8,15 +8,17 @@ import (
 
 /* User model for the mongo DB */
 type User struct {
-	Id        primitive.ObjectID `bson:"_id,omitempty"`
-	Name      string             `bson:"name"`
-	LastName  string             `bson:"lastName"`
-	BirthDate time.Time          `bson:"birthDate"`
-	Email     string             `bson:"email"`
-	Password  string             `bson:"password"`
-	Avatar    string             `bson:"avatar"`
-	Banner    string             `bson:"banner"`
-	Biography string             `bson:"biography"`
-	Location  string             `bson:"location"`
-	WebSite   string             `bson:"webSite"`
+	Id        primitive.ObjectID   `bson:"_id,omitempty"`
+	Name      string               `bson:"name"`
+	LastName  string               `bson:"lastName"`
+	BirthDate time.Time            `bson:"birthDate"`
+	Email     string               `bson:"email"`
+	Password  string               `bson:"password"`
+	Avatar    string               `bson:"avatar"`
+	Banner    string               `bson:"banner"`
+	Biography string               `bson:"biography"`
+	Location  string               `bson:"location"`
+	WebSite   string               `bson:"webSite"`
+	Tweets    []Tweet              `bson:"tweets"`
+	Followers []primitive.ObjectID `bson:"followers"`
 }

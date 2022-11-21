@@ -30,12 +30,12 @@ func (db *DbSql) IsConnection() bool {
 // region "Users"
 
 /* GetProfile gets a profile in the DB */
-func (db *DbSql) GetProfile(id string) (mr.User, error) {
+func (db *DbSql) GetProfile(id string) (mr.User, bool, error) {
 	var profile mr.User
 
 	log.Fatal("Method not implemented")
 
-	return profile, nil
+	return profile, false, nil
 }
 
 /* InsertUser inserts an user into de DB */

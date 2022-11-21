@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -94,10 +95,18 @@ func Login(w http.ResponseWriter, r *http.Request) {
 /* GetProfile gets an user profile */
 func GetProfile(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	profile, err := db.DbConn.GetProfile(id)
+	profile, isFound, err := db.DbConn.GetProfile(id)
 
 	if err != nil {
 		http.Error(w, "An error occurred when trying to find a registry in the DB: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	if !isFound {
+		http.Error(w, "No registry found in the DB", http.StatusNoContent)
+
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -132,6 +141,7 @@ func Modify(w http.ResponseWriter, r *http.Request) {
 /* Upload uploads an user's avatar */
 func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	var filename string
+	var err error
 
 	file, header, err := fc.GetRequestFile("avatar", r)
 
@@ -141,15 +151,21 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	isRemote, _ := strconv.ParseBool(os.Getenv("FILES_REMOTE"))
 
 	if isRemote {
 		var profile req.User
 
-		profile, err = db.DbConn.GetProfile(jwt.UserId)
+		profile, isFound, err := db.DbConn.GetProfile(jwt.UserId)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
+
+			return
+		}
+
+		if !isFound {
+			http.Error(w, "No registry found in the DB", http.StatusNoContent)
 
 			return
 		}
@@ -183,6 +199,7 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 /* Upload uploads an user's banner */
 func UploadBanner(w http.ResponseWriter, r *http.Request) {
 	var filename string
+	var err error
 
 	file, header, err := fc.GetRequestFile("banner", r)
 
@@ -192,12 +209,12 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	isRemote, _ := strconv.ParseBool(os.Getenv("FILES_REMOTE"))
 
 	if isRemote {
 		var profile req.User
 
-		profile, err = db.DbConn.GetProfile(jwt.UserId)
+		profile, isFound, err := db.DbConn.GetProfile(jwt.UserId)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -205,15 +222,15 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if !isFound {
+			http.Error(w, "No registry found in the DB", http.StatusNoContent)
+
+			return
+		}
+
 		filename, err = uploadRemote(file, profile.Banner, "banner")
 	} else {
 		filename, err = uploadLocal("uploads/banners", header, file)
-	}
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-
-		return
 	}
 
 	if err != nil {
@@ -242,7 +259,7 @@ func GetAvatar(w http.ResponseWriter, r *http.Request) {
 	var filepath string
 
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	profile, err := db.DbConn.GetProfile(id)
+	profile, isFound, err := db.DbConn.GetProfile(id)
 
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
@@ -250,7 +267,13 @@ func GetAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	if !isFound {
+		http.Error(w, "No registry found in the DB", http.StatusNoContent)
+
+		return
+	}
+
+	isRemote, _ := strconv.ParseBool(os.Getenv("FILES_REMOTE"))
 
 	if !isRemote {
 		filepath = fmt.Sprintf("uploads/avatars/%s", profile.Avatar)
@@ -275,7 +298,7 @@ func GetBanner(w http.ResponseWriter, r *http.Request) {
 	var filepath string
 
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	profile, err := db.DbConn.GetProfile(id)
+	profile, isFound, err := db.DbConn.GetProfile(id)
 
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
@@ -283,7 +306,13 @@ func GetBanner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
+	if !isFound {
+		http.Error(w, "No registry found in the DB", http.StatusNoContent)
+
+		return
+	}
+
+	isRemote, _ := strconv.ParseBool(os.Getenv("FILES_REMOTE"))
 
 	if !isRemote {
 		filepath = fmt.Sprintf("uploads/banners/%s", profile.Banner)

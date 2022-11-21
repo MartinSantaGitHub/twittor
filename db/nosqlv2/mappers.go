@@ -3,7 +3,7 @@ package nosqlv2
 import (
 	"fmt"
 
-	m "models/nosql"
+	m "models/nosqlv2"
 	mr "models/request"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -67,15 +67,8 @@ func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
 		return tweetModel, err
 	}
 
-	objUserId, err := getObjectId(requestModel.UserId)
-
-	if err != nil {
-		return tweetModel, err
-	}
-
 	tweetModel = m.Tweet{
 		Id:      objId,
-		UserId:  objUserId,
 		Message: requestModel.Message,
 		Date:    requestModel.Date,
 		Active:  requestModel.Active,
@@ -88,7 +81,6 @@ func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
 func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	requestModel := mr.Tweet{
 		Id:      tweetModel.Id.Hex(),
-		UserId:  tweetModel.UserId.Hex(),
 		Message: tweetModel.Message,
 		Date:    tweetModel.Date,
 		Active:  tweetModel.Active,
@@ -98,48 +90,48 @@ func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
 }
 
 /* GetRelationModel obtains the DB Relation model */
-func GetRelationModel(requestModel mr.Relation) (m.Relation, error) {
-	var relationModel m.Relation
+// func GetRelationModel(requestModel mr.Relation) (m.Relation, error) {
+// 	var relationModel m.Relation
 
-	objId, err := getObjectId(requestModel.Id)
+// 	objId, err := getObjectId(requestModel.Id)
 
-	if err != nil {
-		return relationModel, err
-	}
+// 	if err != nil {
+// 		return relationModel, err
+// 	}
 
-	objUserId, err := getObjectId(requestModel.UserId)
+// 	objUserId, err := getObjectId(requestModel.UserId)
 
-	if err != nil {
-		return relationModel, err
-	}
+// 	if err != nil {
+// 		return relationModel, err
+// 	}
 
-	objUserRelationId, err := getObjectId(requestModel.UserRelationId)
+// 	objUserRelationId, err := getObjectId(requestModel.UserRelationId)
 
-	if err != nil {
-		return relationModel, err
-	}
+// 	if err != nil {
+// 		return relationModel, err
+// 	}
 
-	relationModel = m.Relation{
-		Id:             objId,
-		UserId:         objUserId,
-		UserRelationId: objUserRelationId,
-		Active:         requestModel.Active,
-	}
+// 	relationModel = m.Relation{
+// 		Id:             objId,
+// 		UserId:         objUserId,
+// 		UserRelationId: objUserRelationId,
+// 		Active:         requestModel.Active,
+// 	}
 
-	return relationModel, nil
-}
+// 	return relationModel, nil
+// }
 
 /* GetRelationRequest obtains the Request Relation model */
-func GetRelationRequest(relationModel m.Relation) mr.Relation {
-	requestModel := mr.Relation{
-		Id:             relationModel.Id.Hex(),
-		UserId:         relationModel.UserId.Hex(),
-		UserRelationId: relationModel.UserRelationId.Hex(),
-		Active:         relationModel.Active,
-	}
+// func GetRelationRequest(relationModel m.Relation) mr.Relation {
+// 	requestModel := mr.Relation{
+// 		Id:             relationModel.Id.Hex(),
+// 		UserId:         relationModel.UserId.Hex(),
+// 		UserRelationId: relationModel.UserRelationId.Hex(),
+// 		Active:         relationModel.Active,
+// 	}
 
-	return requestModel
-}
+// 	return requestModel
+// }
 
 /* GetUserTweetRequest obtains the Request UserTweet model */
 func GetUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"helpers"
 	"log"
 
 	mr "models/request"
@@ -17,7 +16,7 @@ type DbAdapter interface {
 	IsConnection() bool
 
 	// Users
-	GetProfile(id string) (mr.User, error)
+	GetProfile(id string) (mr.User, bool, error)
 	InsertUser(user mr.User) (string, error)
 	IsUser(email string) (bool, mr.User, error)
 	ModifyRegistry(id string, user mr.User) error
@@ -40,34 +39,31 @@ type DbAdapter interface {
 	//GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error)
 }
 
-func getDataBaseConnector(dbType string) DbAdapter {
+/* DbConn is the connection to the database */
+var DbConn DbAdapter
+
+/* SetDataBaseConnector sets the connector to the database type */
+func SetDataBaseConnector(dbType string) {
 	switch dbType {
 	case "NoSql":
 		dbNoSql := new(dns.DbNoSql)
 
 		dbNoSql.Connect()
 
-		return dbNoSql
+		DbConn = dbNoSql
 	case "NoSqlV2":
 		dbNoSqlV2 := new(dnsv2.DbNoSqlV2)
 
 		dbNoSqlV2.Connect()
 
-		return dbNoSqlV2
+		DbConn = dbNoSqlV2
 	case "Sql":
 		dbSql := new(dr.DbSql)
 
 		dbSql.Connect()
 
-		return dbSql
+		DbConn = dbSql
 	default:
 		log.Fatal("No database connector selected")
-
-		return nil
 	}
 }
-
-var dbType string = helpers.GetEnvVariable("DB_TYPE")
-
-/* DbConn is the connection to the database */
-var DbConn DbAdapter = getDataBaseConnector(dbType)

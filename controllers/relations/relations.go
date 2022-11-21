@@ -87,7 +87,7 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	found, relationDb, err := db.DbConn.GetRelation(relation)
+	isFound, relationDb, err := db.DbConn.GetRelation(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to obtain a relation: %s", err.Error()), http.StatusInternalServerError)
@@ -95,7 +95,7 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if found {
+	if isFound {
 		isRelation = relationDb.Active
 	}
 

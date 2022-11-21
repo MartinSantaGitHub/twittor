@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"helpers"
 	m "models/nosql"
@@ -25,8 +26,8 @@ type DbNoSql struct {
 
 /* Connect connects to the database */
 func (db *DbNoSql) Connect() error {
-	connTimeout := helpers.GetEnvVariable("CTX_TIMEOUT")
-	clientOptions := options.Client().ApplyURI(helpers.GetEnvVariable("MONGO_CONN"))
+	connTimeout := os.Getenv("CTX_TIMEOUT")
+	clientOptions := options.Client().ApplyURI(os.Getenv("MONGO_CONN"))
 	ctx, cancel := helpers.GetTimeoutCtx(connTimeout)
 
 	defer cancel()
@@ -60,14 +61,14 @@ func (db *DbNoSql) IsConnection() bool {
 // region "Users"
 
 /* GetProfile gets a profile in the DB */
-func (db *DbNoSql) GetProfile(id string) (mr.User, error) {
+func (db *DbNoSql) GetProfile(id string) (mr.User, bool, error) {
 	var profileRequest mr.User
 	var profileModel m.User
 
 	objId, err := getObjectId(id)
 
 	if err != nil {
-		return profileRequest, err
+		return profileRequest, false, err
 	}
 
 	col := getCollection(db, "twittor", "users")
@@ -76,23 +77,25 @@ func (db *DbNoSql) GetProfile(id string) (mr.User, error) {
 		"_id": objId,
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
 	err = col.FindOne(ctx, condition).Decode(&profileModel)
 
-	if err != nil {
+	if err != nil && err == mongo.ErrNoDocuments {
 		log.Println("Registry not found: " + err.Error())
 
-		return profileRequest, err
+		return profileRequest, false, nil
+	} else if err != nil {
+		return profileRequest, false, err
 	}
 
 	profileRequest = GetUserRequest(profileModel)
 
 	profileRequest.Password = ""
 
-	return profileRequest, nil
+	return profileRequest, true, nil
 }
 
 /* InsertUser inserts an user into de DB */
@@ -106,7 +109,7 @@ func (db *DbNoSql) InsertUser(user mr.User) (string, error) {
 		return "", err
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -128,7 +131,7 @@ func (db *DbNoSql) IsUser(email string) (bool, mr.User, error) {
 
 	col := getCollection(db, "twittor", "users")
 	condition := bson.M{"email": email}
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -191,7 +194,7 @@ func (db *DbNoSql) ModifyRegistry(id string, user mr.User) error {
 	filter := bson.M{"_id": objId}
 	//filter := bson.M{"_id": bson.M{"$eq": objId}}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -241,7 +244,7 @@ func (db *DbNoSql) DeleteTweetFisical(id string, userId string) error {
 	}
 
 	col := getCollection(db, "twittor", "tweet")
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelFind()
 
@@ -266,7 +269,7 @@ func (db *DbNoSql) DeleteTweetFisical(id string, userId string) error {
 		"userId": objUserId,
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -286,7 +289,7 @@ func (db *DbNoSql) DeleteTweetLogical(id string, userId string) error {
 	}
 
 	col := getCollection(db, "twittor", "tweet")
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelFind()
 
@@ -316,7 +319,7 @@ func (db *DbNoSql) DeleteTweetLogical(id string, userId string) error {
 
 	// Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -342,7 +345,7 @@ func (db *DbNoSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, i
 		"active": true,
 	}
 
-	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelCount()
 
@@ -358,7 +361,7 @@ func (db *DbNoSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, i
 	opts.SetSkip((page - 1) * limit)
 	opts.SetLimit(limit)
 
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelFind()
 
@@ -395,7 +398,7 @@ func (db *DbNoSql) InsertTweet(tweet mr.Tweet) (string, error) {
 	}
 
 	col := getCollection(db, "twittor", "tweet")
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -426,7 +429,7 @@ func (db *DbNoSql) GetRelation(relation mr.Relation) (bool, mr.Relation, error) 
 	}
 
 	col := getCollection(db, "twittor", "relation")
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -449,20 +452,20 @@ func (db *DbNoSql) GetRelation(relation mr.Relation) (bool, mr.Relation, error) 
 /* InsertRelation creates a relation into the DB */
 func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	col := getCollection(db, "twittor", "relation")
-	found, relationDb, err := db.GetRelation(relation)
+	isFound, relationDb, err := db.GetRelation(relation)
 
 	if err != nil {
 		return err
 	}
 
-	if !found {
+	if !isFound {
 		relationModel, err := GetRelationModel(relation)
 
 		if err != nil {
 			return err
 		}
 
-		ctxInsert, cancelInsert := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+		ctxInsert, cancelInsert := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 		defer cancelInsert()
 
@@ -485,7 +488,7 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 		return err
 	}
 
-	ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelUpdate()
 
@@ -503,7 +506,7 @@ func (db *DbNoSql) DeleteRelationFisical(relation mr.Relation) error {
 	}
 
 	col := getCollection(db, "twittor", "relation")
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -525,7 +528,7 @@ func (db *DbNoSql) DeleteRelationLogical(relation mr.Relation) error {
 
 	// Also bson.M{"$set": bson.M{"active": false},} in the updateString
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -551,7 +554,7 @@ func (db *DbNoSql) GetUsers(id string, page int64, limit int64, search string, s
 	findOpts.SetSkip((page - 1) * limit)
 	findOpts.SetLimit(limit)
 
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelFind()
 
@@ -587,13 +590,13 @@ func (db *DbNoSql) GetUsers(id string, page int64, limit int64, search string, s
 			Active:         true,
 		}
 
-		found, relationDb, err := db.GetRelation(relationRequest)
+		isFound, relationDb, err := db.GetRelation(relationRequest)
 
 		if err != nil {
 			return results, total, err
 		}
 
-		if found {
+		if isFound {
 			isRelation = relationDb.Active
 		}
 
@@ -882,7 +885,7 @@ func getResults[T any](db *DbNoSql, colName string, countPipeline []primitive.M,
 
 	// region "Count"
 
-	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelCount()
 
@@ -908,7 +911,7 @@ func getResults[T any](db *DbNoSql, colName string, countPipeline []primitive.M,
 
 	// region "Aggregate"
 
-	ctxAggregate, cancelAggregate := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxAggregate, cancelAggregate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelAggregate()
 

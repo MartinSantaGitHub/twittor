@@ -2,12 +2,13 @@ package nosqlv2
 
 import (
 	"context"
-	"errors"
+	//"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"helpers"
-	m "models/nosql"
+	m "models/nosqlv2"
 	mr "models/request"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,8 +26,8 @@ type DbNoSqlV2 struct {
 
 /* Connect connects to the database */
 func (db *DbNoSqlV2) Connect() error {
-	connTimeout := helpers.GetEnvVariable("CTX_TIMEOUT")
-	clientOptions := options.Client().ApplyURI(helpers.GetEnvVariable("MONGO_CONN"))
+	connTimeout := os.Getenv("CTX_TIMEOUT")
+	clientOptions := options.Client().ApplyURI(os.Getenv("MONGO_CONN"))
 	ctx, cancel := helpers.GetTimeoutCtx(connTimeout)
 
 	defer cancel()
@@ -60,44 +61,46 @@ func (db *DbNoSqlV2) IsConnection() bool {
 // region "Users"
 
 /* GetProfile gets a profile in the DB */
-func (db *DbNoSqlV2) GetProfile(id string) (mr.User, error) {
+func (db *DbNoSqlV2) GetProfile(id string) (mr.User, bool, error) {
 	var profileRequest mr.User
 	var profileModel m.User
 
 	objId, err := getObjectId(id)
 
 	if err != nil {
-		return profileRequest, err
+		return profileRequest, false, err
 	}
 
-	col := getCollection(db, "twittor", "users")
+	col := getCollection(db, "twitton", "users")
 
 	condition := bson.M{
 		"_id": objId,
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
 	err = col.FindOne(ctx, condition).Decode(&profileModel)
 
-	if err != nil {
+	if err != nil && err == mongo.ErrNoDocuments {
 		log.Println("Registry not found: " + err.Error())
 
-		return profileRequest, err
+		return profileRequest, false, nil
+	} else if err != nil {
+		return profileRequest, false, err
 	}
 
 	profileRequest = GetUserRequest(profileModel)
 
 	profileRequest.Password = ""
 
-	return profileRequest, nil
+	return profileRequest, true, nil
 }
 
 /* InsertUser inserts an user into de DB */
 func (db *DbNoSqlV2) InsertUser(user mr.User) (string, error) {
-	col := getCollection(db, "twittor", "users")
+	col := getCollection(db, "twitton", "users")
 
 	user.Password, _ = encryptPassword(user.Password)
 	userModel, err := GetUserModel(user)
@@ -106,7 +109,7 @@ func (db *DbNoSqlV2) InsertUser(user mr.User) (string, error) {
 		return "", err
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -126,9 +129,9 @@ func (db *DbNoSqlV2) IsUser(email string) (bool, mr.User, error) {
 	var userModel m.User
 	var requestModel mr.User
 
-	col := getCollection(db, "twittor", "users")
+	col := getCollection(db, "twitton", "users")
 	condition := bson.M{"email": email}
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -151,7 +154,7 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 		return err
 	}
 
-	col := getCollection(db, "twittor", "users")
+	col := getCollection(db, "twitton", "users")
 	registry := make(map[string]interface{})
 
 	if len(user.Name) > 0 {
@@ -191,7 +194,7 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 	filter := bson.M{"_id": objId}
 	//filter := bson.M{"_id": bson.M{"$eq": objId}}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -232,95 +235,97 @@ func (db *DbNoSqlV2) TryLogin(email string, password string) (mr.User, bool) {
 
 /* Delete deletes a tweet in the DB */
 func (db *DbNoSqlV2) DeleteTweetFisical(id string, userId string) error {
-	var tweetModel m.Tweet
+	var err error
+	// var tweetModel m.Tweet
 
-	objId, err := getObjectId(id)
+	// objId, err := getObjectId(id)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
-	col := getCollection(db, "twittor", "tweet")
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// col := getCollection(db, "twitton", "tweet")
+	// ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	defer cancelFind()
+	// defer cancelFind()
 
-	condition := bson.M{
-		"_id": objId,
-	}
+	// condition := bson.M{
+	// 	"_id": objId,
+	// }
 
-	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+	// err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
-	objUserId, _ := getObjectId(userId)
+	// objUserId, _ := getObjectId(userId)
 
-	if objUserId != tweetModel.UserId {
-		return errors.New("invalid operation - cannot delete a non-owner tweet")
-	}
+	// if objUserId != tweetModel.UserId {
+	// 	return errors.New("invalid operation - cannot delete a non-owner tweet")
+	// }
 
-	condition = bson.M{
-		"_id":    objId,
-		"userId": objUserId,
-	}
+	// condition = bson.M{
+	// 	"_id":    objId,
+	// 	"userId": objUserId,
+	// }
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	defer cancel()
+	// defer cancel()
 
-	_, err = col.DeleteOne(ctx, condition)
+	// _, err = col.DeleteOne(ctx, condition)
 
 	return err
 }
 
 /* DeleteLogical inactivates a tweet in the DB */
 func (db *DbNoSqlV2) DeleteTweetLogical(id string, userId string) error {
-	var tweetModel m.Tweet
+	var err error
+	// var tweetModel m.Tweet
 
-	objId, err := getObjectId(id)
+	// objId, err := getObjectId(id)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
-	col := getCollection(db, "twittor", "tweet")
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// col := getCollection(db, "twitton", "tweet")
+	// ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	defer cancelFind()
+	// defer cancelFind()
 
-	condition := bson.M{
-		"_id": objId,
-	}
+	// condition := bson.M{
+	// 	"_id": objId,
+	// }
 
-	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+	// err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
-	objUserId, _ := getObjectId(userId)
+	// objUserId, _ := getObjectId(userId)
 
-	if objUserId != tweetModel.UserId {
-		return errors.New("invalid operation - cannot delete a non-owner tweet")
-	}
+	// if objUserId != tweetModel.UserId {
+	// 	return errors.New("invalid operation - cannot delete a non-owner tweet")
+	// }
 
-	condition = bson.M{
-		"_id":    objId,
-		"userId": objUserId,
-	}
-	updateString := bson.M{
-		"$set": bson.M{"active": false},
-	}
+	// condition = bson.M{
+	// 	"_id":    objId,
+	// 	"userId": objUserId,
+	// }
+	// updateString := bson.M{
+	// 	"$set": bson.M{"active": false},
+	// }
 
-	// Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
+	// // Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	defer cancel()
+	// defer cancel()
 
-	_, err = col.UpdateOne(ctx, condition, updateString)
+	// _, err = col.UpdateOne(ctx, condition, updateString)
 
 	return err
 }
@@ -336,13 +341,13 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 		return results, 0, err
 	}
 
-	col := getCollection(db, "twittor", "tweet")
+	col := getCollection(db, "twitton", "tweet")
 	condition := bson.M{
 		"userId": objId,
 		"active": true,
 	}
 
-	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelCount()
 
@@ -358,7 +363,7 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 	opts.SetSkip((page - 1) * limit)
 	opts.SetLimit(limit)
 
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelFind()
 
@@ -394,8 +399,8 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 		return "", err
 	}
 
-	col := getCollection(db, "twittor", "tweet")
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	col := getCollection(db, "twitton", "tweet")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
@@ -417,119 +422,126 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 
 /* GetRelation obtains a relation from the DB if exist */
 func (db *DbNoSqlV2) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
+	var err error
 	var result mr.Relation
 
-	relationModel, err := GetRelationModel(relation)
+	// relationModel, err := GetRelationModel(relation)
 
-	if err != nil {
-		return false, result, err
-	}
+	// if err != nil {
+	// 	return false, result, err
+	// }
 
-	col := getCollection(db, "twittor", "relation")
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// col := getCollection(db, "twitton", "relation")
+	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	defer cancel()
+	// defer cancel()
 
-	condition := bson.M{
-		"userId":         relationModel.UserId,
-		"userRelationId": relationModel.UserRelationId,
-	}
+	// condition := bson.M{
+	// 	"userId":         relationModel.UserId,
+	// 	"userRelationId": relationModel.UserRelationId,
+	// }
 
-	err = col.FindOne(ctx, condition).Decode(&relationModel)
+	// err = col.FindOne(ctx, condition).Decode(&relationModel)
 
-	if err != nil && err == mongo.ErrNoDocuments {
-		return false, result, nil
-	}
+	// if err != nil && err == mongo.ErrNoDocuments {
+	// 	return false, result, nil
+	// }
 
-	result = GetRelationRequest(relationModel)
+	// result = GetRelationRequest(relationModel)
 
 	return true, result, err
 }
 
 /* InsertRelation creates a relation into the DB */
 func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
-	col := getCollection(db, "twittor", "relation")
-	found, relationDb, err := db.GetRelation(relation)
+	var err error
 
-	if err != nil {
-		return err
-	}
+	// col := getCollection(db, "twitton", "relation")
+	// isFound, relationDb, err := db.GetRelation(relation)
 
-	if !found {
-		relationModel, err := GetRelationModel(relation)
+	// if err != nil {
+	// 	return err
+	// }
 
-		if err != nil {
-			return err
-		}
+	// if !isFound {
+	// 	relationModel, err := GetRelationModel(relation)
 
-		ctxInsert, cancelInsert := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		defer cancelInsert()
+	// 	ctxInsert, cancelInsert := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-		_, err = col.InsertOne(ctxInsert, relationModel)
+	// 	defer cancelInsert()
 
-		return err
-	}
+	// 	_, err = col.InsertOne(ctxInsert, relationModel)
 
-	if relationDb.Active {
-		return fmt.Errorf("the relation with the user id: %s already exists", relation.UserRelationId)
-	}
+	// 	return err
+	// }
 
-	updateString := bson.M{
-		"$set": bson.M{"active": true},
-	}
+	// if relationDb.Active {
+	// 	return fmt.Errorf("the relation with the user id: %s already exists", relation.UserRelationId)
+	// }
 
-	id, err := getObjectId(relationDb.Id)
+	// updateString := bson.M{
+	// 	"$set": bson.M{"active": true},
+	// }
 
-	if err != nil {
-		return err
-	}
+	// id, err := getObjectId(relationDb.Id)
 
-	ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// if err != nil {
+	// 	return err
+	// }
 
-	defer cancelUpdate()
+	// ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	_, err = col.UpdateByID(ctxUpdate, id, updateString)
+	// defer cancelUpdate()
+
+	// _, err = col.UpdateByID(ctxUpdate, id, updateString)
 
 	return err
 }
 
 /* Delete deletes a relation in the DB */
 func (db *DbNoSqlV2) DeleteRelationFisical(relation mr.Relation) error {
-	relationModel, err := GetRelationModel(relation)
+	var err error
 
-	if err != nil {
-		return err
-	}
+	// relationModel, err := GetRelationModel(relation)
 
-	col := getCollection(db, "twittor", "relation")
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// if err != nil {
+	// 	return err
+	// }
 
-	defer cancel()
+	// col := getCollection(db, "twittor", "relation")
+	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	_, err = col.DeleteOne(ctx, relationModel)
+	// defer cancel()
+
+	// _, err = col.DeleteOne(ctx, relationModel)
 
 	return err
 }
 
 /* DeleteLogical inactivates a relation in the DB */
 func (db *DbNoSqlV2) DeleteRelationLogical(relation mr.Relation) error {
-	relationModel, err := GetRelationModel(relation)
+	var err error
 
-	if err != nil {
-		return err
-	}
+	// relationModel, err := GetRelationModel(relation)
 
-	col := getCollection(db, "twittor", "relation")
-	updateString := map[string]map[string]bool{"$set": {"active": false}}
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Also bson.M{"$set": bson.M{"active": false},} in the updateString
+	// col := getCollection(db, "twittor", "relation")
+	// updateString := map[string]map[string]bool{"$set": {"active": false}}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	// // Also bson.M{"$set": bson.M{"active": false},} in the updateString
 
-	defer cancel()
+	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	_, err = col.UpdateOne(ctx, relationModel, updateString)
+	// defer cancel()
+
+	// _, err = col.UpdateOne(ctx, relationModel, updateString)
 
 	return err
 }
@@ -551,7 +563,7 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 	findOpts.SetSkip((page - 1) * limit)
 	findOpts.SetLimit(limit)
 
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelFind()
 
@@ -587,13 +599,13 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 			Active:         true,
 		}
 
-		found, relationDb, err := db.GetRelation(relationRequest)
+		isFound, relationDb, err := db.GetRelation(relationRequest)
 
 		if err != nil {
 			return results, total, err
 		}
 
-		if found {
+		if isFound {
 			isRelation = relationDb.Active
 		}
 
@@ -878,11 +890,11 @@ func getResults[T any](db *DbNoSqlV2, colName string, countPipeline []primitive.
 	var results []*T
 	var totalResult m.TotalResult
 
-	col := getCollection(db, "twittor", colName)
+	col := getCollection(db, "twitton", colName)
 
 	// region "Count"
 
-	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelCount()
 
@@ -908,7 +920,7 @@ func getResults[T any](db *DbNoSqlV2, colName string, countPipeline []primitive.
 
 	// region "Aggregate"
 
-	ctxAggregate, cancelAggregate := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+	ctxAggregate, cancelAggregate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelAggregate()
 

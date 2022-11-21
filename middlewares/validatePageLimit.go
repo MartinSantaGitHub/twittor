@@ -4,6 +4,7 @@ import (
 	"context"
 	"helpers"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -27,7 +28,7 @@ func ValidatePageLimit(next http.HandlerFunc) http.HandlerFunc {
 		limitQuery := r.URL.Query().Get("limit")
 
 		if len(limitQuery) < 1 {
-			limitQuery = helpers.GetEnvVariable("RECORDS_LIMIT")
+			limitQuery = os.Getenv("RECORDS_LIMIT")
 		}
 
 		limit, err := strconv.ParseInt(limitQuery, 10, 64)
