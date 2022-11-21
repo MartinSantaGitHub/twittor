@@ -24,8 +24,8 @@ type DbAdapter interface {
 	TryLogin(email string, password string) (mr.User, bool)
 
 	// Tweets
-	DeleteTweetFisical(id string) error
-	DeleteTweetLogical(id string) error
+	DeleteTweetFisical(id string, userId string) error
+	DeleteTweetLogical(id string, userId string) error
 	GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int64, error)
 	InsertTweet(tweet mr.Tweet) (string, error)
 

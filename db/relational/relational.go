@@ -78,14 +78,14 @@ func (db *DbSql) TryLogin(email string, password string) (mr.User, bool) {
 // region "Tweets"
 
 /* Delete deletes a tweet in the DB */
-func (db *DbSql) DeleteTweetFisical(id string) error {
+func (db *DbSql) DeleteTweetFisical(id string, userId string) error {
 	log.Fatal("Method not implemented")
 
 	return nil
 }
 
 /* DeleteLogical inactivates a tweet in the DB */
-func (db *DbSql) DeleteTweetLogical(id string) error {
+func (db *DbSql) DeleteTweetLogical(id string, userId string) error {
 	log.Fatal("Method not implemented")
 
 	return nil

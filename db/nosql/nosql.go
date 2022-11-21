@@ -9,6 +9,7 @@ import (
 	m "models/nosql"
 	mr "models/request"
 
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -87,7 +88,7 @@ func (db *DbNoSql) GetProfile(id string) (mr.User, error) {
 		return profileRequest, err
 	}
 
-	profileRequest = getUserRequest(profileModel)
+	profileRequest = GetUserRequest(profileModel)
 
 	profileRequest.Password = ""
 
@@ -99,7 +100,7 @@ func (db *DbNoSql) InsertUser(user mr.User) (string, error) {
 	col := getCollection(db, "twittor", "users")
 
 	user.Password, _ = encryptPassword(user.Password)
-	userModel, err := getUserModel(user)
+	userModel, err := GetUserModel(user)
 
 	if err != nil {
 		return "", err
@@ -137,7 +138,7 @@ func (db *DbNoSql) IsUser(email string) (bool, mr.User, error) {
 		return false, requestModel, nil
 	}
 
-	requestModel = getUserRequest(userModel)
+	requestModel = GetUserRequest(userModel)
 
 	return true, requestModel, err
 }
@@ -230,7 +231,9 @@ func (db *DbNoSql) TryLogin(email string, password string) (mr.User, bool) {
 // region "Tweets"
 
 /* Delete deletes a tweet in the DB */
-func (db *DbNoSql) DeleteTweetFisical(id string) error {
+func (db *DbNoSql) DeleteTweetFisical(id string, userId string) error {
+	var tweetModel m.Tweet
+
 	objId, err := getObjectId(id)
 
 	if err != nil {
@@ -238,9 +241,29 @@ func (db *DbNoSql) DeleteTweetFisical(id string) error {
 	}
 
 	col := getCollection(db, "twittor", "tweet")
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+
+	defer cancelFind()
 
 	condition := bson.M{
 		"_id": objId,
+	}
+
+	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+
+	if err != nil {
+		return err
+	}
+
+	objUserId, _ := getObjectId(userId)
+
+	if objUserId != tweetModel.UserId {
+		return errors.New("Invalid Operation: Cannot delete a non-owner tweet")
+	}
+
+	condition = bson.M{
+		"_id":    objId,
+		"userId": objUserId,
 	}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
@@ -253,7 +276,9 @@ func (db *DbNoSql) DeleteTweetFisical(id string) error {
 }
 
 /* DeleteLogical inactivates a tweet in the DB */
-func (db *DbNoSql) DeleteTweetLogical(id string) error {
+func (db *DbNoSql) DeleteTweetLogical(id string, userId string) error {
+	var tweetModel m.Tweet
+
 	objId, err := getObjectId(id)
 
 	if err != nil {
@@ -261,9 +286,29 @@ func (db *DbNoSql) DeleteTweetLogical(id string) error {
 	}
 
 	col := getCollection(db, "twittor", "tweet")
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
+
+	defer cancelFind()
 
 	condition := bson.M{
 		"_id": objId,
+	}
+
+	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+
+	if err != nil {
+		return err
+	}
+
+	objUserId, _ := getObjectId(userId)
+
+	if objUserId != tweetModel.UserId {
+		return errors.New("Invalid Operation: Cannot delete a non-owner tweet")
+	}
+
+	condition = bson.M{
+		"_id":    objId,
+		"userId": objUserId,
 	}
 	updateString := bson.M{
 		"$set": bson.M{"active": false},
@@ -334,7 +379,7 @@ func (db *DbNoSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, i
 	}
 
 	for _, tweetModel := range tweetsDbResults {
-		tweetRequest := getTweetRequest(*tweetModel)
+		tweetRequest := GetTweetRequest(*tweetModel)
 		results = append(results, &tweetRequest)
 	}
 
@@ -343,7 +388,7 @@ func (db *DbNoSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, i
 
 /* InsertTweet inserts a tweet in the DB */
 func (db *DbNoSql) InsertTweet(tweet mr.Tweet) (string, error) {
-	tweetModel, err := getTweetModel(tweet)
+	tweetModel, err := GetTweetModel(tweet)
 
 	if err != nil {
 		return "", err
@@ -386,7 +431,7 @@ func (db *DbNoSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 		return false, result, nil
 	}
 
-	result = getRelationRequest(relationModel)
+	result = GetRelationRequest(relationModel)
 
 	return true, result, err
 }
@@ -401,7 +446,7 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	}
 
 	if !isRelation {
-		relationModel, err := getRelationModel(relation)
+		relationModel, err := GetRelationModel(relation)
 
 		if err != nil {
 			return err
@@ -441,7 +486,7 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 
 /* Delete deletes a relation in the DB */
 func (db *DbNoSql) DeleteRelationFisical(relation mr.Relation) error {
-	relationModel, err := getRelationModel(relation)
+	relationModel, err := GetRelationModel(relation)
 
 	if err != nil {
 		return err
@@ -459,7 +504,7 @@ func (db *DbNoSql) DeleteRelationFisical(relation mr.Relation) error {
 
 /* DeleteLogical inactivates a relation in the DB */
 func (db *DbNoSql) DeleteRelationLogical(relation mr.Relation) error {
-	relationModel, err := getRelationModel(relation)
+	relationModel, err := GetRelationModel(relation)
 
 	if err != nil {
 		return err
@@ -521,7 +566,7 @@ func (db *DbNoSql) GetUsers(id string, page int64, limit int64, search string, s
 			return results, total, err
 		}
 
-		userRequest := getUserRequest(result)
+		userRequest := GetUserRequest(result)
 
 		relationRequest := mr.Relation{
 			UserId:         id,
@@ -612,7 +657,7 @@ func (db *DbNoSql) GetFollowers(id string, page int64, limit int64, search strin
 
 	if err == nil {
 		for _, userModel := range dbResults {
-			userRequest := getUserRequest(*userModel)
+			userRequest := GetUserRequest(*userModel)
 			results = append(results, &userRequest)
 		}
 	}
@@ -690,7 +735,7 @@ func (db *DbNoSql) GetNotFollowers(id string, page int64, limit int64, search st
 
 	if err == nil {
 		for _, userModel := range dbResults {
-			userRequest := getUserRequest(*userModel)
+			userRequest := GetUserRequest(*userModel)
 			results = append(results, &userRequest)
 		}
 	}
@@ -766,7 +811,7 @@ func (db *DbNoSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTwee
 
 		if err == nil {
 			for _, tweetModel := range dbResults {
-				tweetRequest := getTweetRequest(*tweetModel)
+				tweetRequest := GetTweetRequest(*tweetModel)
 				results = append(results, &tweetRequest)
 			}
 		}
@@ -777,7 +822,7 @@ func (db *DbNoSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTwee
 
 		if err == nil {
 			for _, userTweetModel := range dbResults {
-				userTweetRequest := getUserTweetRequest(*userTweetModel)
+				userTweetRequest := GetUserTweetRequest(*userTweetModel)
 				results = append(results, &userTweetRequest)
 			}
 		}
@@ -789,161 +834,6 @@ func (db *DbNoSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTwee
 // endregion
 
 // region "Helpers"
-
-func getUserModel(requestModel mr.User) (m.User, error) {
-	var userModel m.User
-
-	objId, err := getObjectId(requestModel.Id)
-
-	if err != nil {
-		return userModel, err
-	}
-
-	userModel = m.User{
-		Id:        objId,
-		Name:      requestModel.Name,
-		LastName:  requestModel.LastName,
-		Email:     requestModel.Email,
-		BirthDate: requestModel.BirthDate,
-		Avatar:    requestModel.Avatar,
-		Banner:    requestModel.Banner,
-		Biography: requestModel.Biography,
-		Location:  requestModel.Location,
-		WebSite:   requestModel.WebSite,
-		Password:  requestModel.Password,
-	}
-
-	return userModel, nil
-}
-
-func getUserRequest(userModel m.User) mr.User {
-	requestModel := mr.User{
-		Id:        userModel.Id.Hex(),
-		Name:      userModel.Name,
-		LastName:  userModel.LastName,
-		Email:     userModel.Email,
-		BirthDate: userModel.BirthDate,
-		Avatar:    userModel.Avatar,
-		Banner:    userModel.Banner,
-		Biography: userModel.Biography,
-		Location:  userModel.Location,
-		WebSite:   userModel.WebSite,
-		Password:  userModel.Password,
-	}
-
-	return requestModel
-}
-
-func getTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
-	var tweetModel m.Tweet
-
-	objId, err := getObjectId(requestModel.Id)
-
-	if err != nil {
-		return tweetModel, err
-	}
-
-	objUserId, err := getObjectId(requestModel.UserId)
-
-	if err != nil {
-		return tweetModel, err
-	}
-
-	tweetModel = m.Tweet{
-		Id:      objId,
-		UserId:  objUserId,
-		Message: requestModel.Message,
-		Date:    requestModel.Date,
-		Active:  requestModel.Active,
-	}
-
-	return tweetModel, nil
-}
-
-func getTweetRequest(tweetModel m.Tweet) mr.Tweet {
-	requestModel := mr.Tweet{
-		Id:      tweetModel.Id.Hex(),
-		UserId:  tweetModel.UserId.Hex(),
-		Message: tweetModel.Message,
-		Date:    tweetModel.Date,
-		Active:  tweetModel.Active,
-	}
-
-	return requestModel
-}
-
-func getRelationModel(requestModel mr.Relation) (m.Relation, error) {
-	var relationModel m.Relation
-
-	objId, err := getObjectId(requestModel.Id)
-
-	if err != nil {
-		return relationModel, err
-	}
-
-	objUserId, err := getObjectId(requestModel.UserId)
-
-	if err != nil {
-		return relationModel, err
-	}
-
-	objUserRelationId, err := getObjectId(requestModel.UserRelationId)
-
-	if err != nil {
-		return relationModel, err
-	}
-
-	relationModel = m.Relation{
-		Id:             objId,
-		UserId:         objUserId,
-		UserRelationId: objUserRelationId,
-		Active:         requestModel.Active,
-	}
-
-	return relationModel, nil
-}
-
-func getRelationRequest(relationModel m.Relation) mr.Relation {
-	requestModel := mr.Relation{
-		Id:             relationModel.Id.Hex(),
-		UserId:         relationModel.UserId.Hex(),
-		UserRelationId: relationModel.UserRelationId.Hex(),
-		Active:         relationModel.Active,
-	}
-
-	return requestModel
-}
-
-func getUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {
-	requestModel := mr.UserTweet{
-		Id:             userTweetModel.Id.Hex(),
-		UserId:         userTweetModel.UserId.Hex(),
-		UserRelationId: userTweetModel.UserRelationId.Hex(),
-	}
-
-	requestModel.Tweet.Id = userTweetModel.Tweet.Id.Hex()
-	requestModel.Tweet.Message = userTweetModel.Tweet.Message
-	requestModel.Tweet.Date = userTweetModel.Tweet.Date
-
-	return requestModel
-}
-
-func getObjectId(id string) (primitive.ObjectID, error) {
-	var objId primitive.ObjectID
-	var err error
-
-	if len(id) < 1 {
-		return objId, nil
-	}
-
-	objId, err = primitive.ObjectIDFromHex(id)
-
-	if err != nil {
-		return objId, fmt.Errorf("invalid id param")
-	}
-
-	return objId, nil
-}
 
 func encryptPassword(password string) (string, error) {
 	// Minimum - cost: 6
