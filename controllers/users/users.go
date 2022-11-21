@@ -46,7 +46,7 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	_, err = db.DbConn.InsertUser(user)
 
 	if err != nil {
-		http.Error(w, "There was an error trying to regist the user"+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "There was an error trying to regist the user: "+err.Error(), http.StatusInternalServerError)
 
 		return
 	}

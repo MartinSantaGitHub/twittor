@@ -76,9 +76,10 @@ func (db *DbNoSqlV2) GetProfile(id string) (mr.User, error) {
 	}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	err = col.FindOne(ctx, condition).Decode(&profileModel)
 
 	defer cancel()
+
+	err = col.FindOne(ctx, condition).Decode(&profileModel)
 
 	if err != nil {
 		log.Println("Registry not found: " + err.Error())
@@ -98,17 +99,17 @@ func (db *DbNoSqlV2) InsertUser(user mr.User) (string, error) {
 	col := getCollection(db, "twittor", "users")
 
 	user.Password, _ = encryptPassword(user.Password)
-
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	userModel, err := getUserModel(user)
 
 	if err != nil {
 		return "", err
 	}
 
-	result, err := col.InsertOne(ctx, userModel)
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 
 	defer cancel()
+
+	result, err := col.InsertOne(ctx, userModel)
 
 	if err != nil {
 		return "", err
@@ -127,9 +128,10 @@ func (db *DbNoSqlV2) IsUser(email string) (bool, mr.User, error) {
 	col := getCollection(db, "twittor", "users")
 	condition := bson.M{"email": email}
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	err := col.FindOne(ctx, condition).Decode(&userModel)
 
 	defer cancel()
+
+	err := col.FindOne(ctx, condition).Decode(&userModel)
 
 	if err != nil && err == mongo.ErrNoDocuments {
 		return false, requestModel, nil
@@ -189,10 +191,11 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 	//filter := bson.M{"_id": bson.M{"$eq": objId}}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	_, err = col.UpdateOne(ctx, filter, updateString)
-	//_, err := col.UpdateByID(ctx, objId, updateString)
 
 	defer cancel()
+
+	_, err = col.UpdateOne(ctx, filter, updateString)
+	//_, err := col.UpdateByID(ctx, objId, updateString)
 
 	if err != nil {
 		return err
@@ -241,9 +244,10 @@ func (db *DbNoSqlV2) DeleteTweetFisical(id string) error {
 	}
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	_, err = col.DeleteOne(ctx, condition)
 
 	defer cancel()
+
+	_, err = col.DeleteOne(ctx, condition)
 
 	return err
 }
@@ -268,9 +272,10 @@ func (db *DbNoSqlV2) DeleteTweetLogical(id string) error {
 	// Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	_, err = col.UpdateOne(ctx, condition, updateString)
 
 	defer cancel()
+
+	_, err = col.UpdateOne(ctx, condition, updateString)
 
 	return err
 }
@@ -293,9 +298,10 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 	}
 
 	ctxCount, cancelCount := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	total, err := col.CountDocuments(ctxCount, condition)
 
 	defer cancelCount()
+
+	total, err := col.CountDocuments(ctxCount, condition)
 
 	if err != nil {
 		return results, total, err
@@ -308,9 +314,10 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 	opts.SetLimit(limit)
 
 	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	cursor, err := col.Find(ctxFind, condition, opts)
 
 	defer cancelFind()
+
+	cursor, err := col.Find(ctxFind, condition, opts)
 
 	if err != nil {
 		return results, total, err
@@ -344,9 +351,10 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 
 	col := getCollection(db, "twittor", "tweet")
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	result, err := col.InsertOne(ctx, tweetModel)
 
 	defer cancel()
+
+	result, err := col.InsertOne(ctx, tweetModel)
 
 	if err != nil {
 		return "", err
@@ -369,9 +377,10 @@ func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error)
 
 	col := getCollection(db, "twittor", "relation")
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	err := col.FindOne(ctx, relation).Decode(&relationModel)
 
 	defer cancel()
+
+	err := col.FindOne(ctx, relation).Decode(&relationModel)
 
 	if err != nil && err == mongo.ErrNoDocuments {
 		return false, result, nil
@@ -399,9 +408,10 @@ func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 		}
 
 		ctxInsert, cancelInsert := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-		_, err = col.InsertOne(ctxInsert, relationModel)
 
 		defer cancelInsert()
+
+		_, err = col.InsertOne(ctxInsert, relationModel)
 
 		return err
 	}
@@ -421,9 +431,10 @@ func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 	}
 
 	ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	_, err = col.UpdateByID(ctxUpdate, id, updateString)
 
 	defer cancelUpdate()
+
+	_, err = col.UpdateByID(ctxUpdate, id, updateString)
 
 	return err
 }
@@ -436,11 +447,12 @@ func (db *DbNoSqlV2) DeleteRelationFisical(relation mr.Relation) error {
 		return err
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 	col := getCollection(db, "twittor", "relation")
-	_, err = col.DeleteOne(ctx, relationModel)
+	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 
 	defer cancel()
+
+	_, err = col.DeleteOne(ctx, relationModel)
 
 	return err
 }
@@ -459,9 +471,10 @@ func (db *DbNoSqlV2) DeleteRelationLogical(relation mr.Relation) error {
 	// Also bson.M{"$set": bson.M{"active": false},} in the updateString
 
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	_, err = col.UpdateOne(ctx, relationModel, updateString)
 
 	defer cancel()
+
+	_, err = col.UpdateOne(ctx, relationModel, updateString)
 
 	return err
 }
@@ -484,9 +497,10 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 	findOpts.SetLimit(limit)
 
 	ctxFind, cancelFind := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
-	cursor, err := col.Find(ctxFind, query, findOpts)
 
 	defer cancelFind()
+
+	cursor, err := col.Find(ctxFind, query, findOpts)
 
 	if err != nil {
 		return results, total, err
@@ -918,9 +932,9 @@ func getObjectId(id string) (primitive.ObjectID, error) {
 	var objId primitive.ObjectID
 	var err error
 
-	// if len(id) < 1 {
-	// 	return objId, nil
-	// }
+	if len(id) < 1 {
+		return objId, nil
+	}
 
 	objId, err = primitive.ObjectIDFromHex(id)
 
