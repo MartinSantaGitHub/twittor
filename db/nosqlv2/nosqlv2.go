@@ -258,7 +258,7 @@ func (db *DbNoSqlV2) DeleteTweetFisical(id string, userId string) error {
 	objUserId, _ := getObjectId(userId)
 
 	if objUserId != tweetModel.UserId {
-		return errors.New("Invalid Operation: Cannot delete a non-owner tweet")
+		return errors.New("invalid operation - cannot delete a non-owner tweet")
 	}
 
 	condition = bson.M{
@@ -303,7 +303,7 @@ func (db *DbNoSqlV2) DeleteTweetLogical(id string, userId string) error {
 	objUserId, _ := getObjectId(userId)
 
 	if objUserId != tweetModel.UserId {
-		return errors.New("Invalid Operation: Cannot delete a non-owner tweet")
+		return errors.New("invalid operation - cannot delete a non-owner tweet")
 	}
 
 	condition = bson.M{
