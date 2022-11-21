@@ -141,6 +141,7 @@ func Modify(w http.ResponseWriter, r *http.Request) {
 /* Upload uploads an user's avatar */
 func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	var filename string
+	var isFound bool
 	var err error
 
 	file, header, err := fc.GetRequestFile("avatar", r)
@@ -156,7 +157,7 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if isRemote {
 		var profile req.User
 
-		profile, isFound, err := db.DbConn.GetProfile(jwt.UserId)
+		profile, isFound, err = db.DbConn.GetProfile(jwt.UserId)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -199,6 +200,7 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 /* Upload uploads an user's banner */
 func UploadBanner(w http.ResponseWriter, r *http.Request) {
 	var filename string
+	var isFound bool
 	var err error
 
 	file, header, err := fc.GetRequestFile("banner", r)
@@ -214,7 +216,7 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 	if isRemote {
 		var profile req.User
 
-		profile, isFound, err := db.DbConn.GetProfile(jwt.UserId)
+		profile, isFound, err = db.DbConn.GetProfile(jwt.UserId)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
