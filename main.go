@@ -11,5 +11,7 @@ func main() {
 		log.Fatal("No connection to the DB")
 	}
 
+	log.Println("Connection successful to the DB")
+
 	handlers.Handlers()
 }
