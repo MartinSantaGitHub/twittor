@@ -415,17 +415,27 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 
 // region "Relations"
 
-/* IsRelation verifies if exist a relation in the DB */
-func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
+/* GetRelation obtains a relation from the DB if exist */
+func (db *DbNoSqlV2) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	var result mr.Relation
-	var relationModel m.Relation
+
+	relationModel, err := GetRelationModel(relation)
+
+	if err != nil {
+		return false, result, err
+	}
 
 	col := getCollection(db, "twittor", "relation")
 	ctx, cancel := helpers.GetTimeoutCtx(helpers.GetEnvVariable("CTX_TIMEOUT"))
 
 	defer cancel()
 
-	err := col.FindOne(ctx, relation).Decode(&relationModel)
+	condition := bson.M{
+		"userId":         relationModel.UserId,
+		"userRelationId": relationModel.UserRelationId,
+	}
+
+	err = col.FindOne(ctx, condition).Decode(&relationModel)
 
 	if err != nil && err == mongo.ErrNoDocuments {
 		return false, result, nil
@@ -433,19 +443,19 @@ func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error)
 
 	result = GetRelationRequest(relationModel)
 
-	return result.Active, result, err
+	return true, result, err
 }
 
 /* InsertRelation creates a relation into the DB */
 func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 	col := getCollection(db, "twittor", "relation")
-	isRelation, relationDb, err := db.IsRelation(relation)
+	found, relationDb, err := db.GetRelation(relation)
 
 	if err != nil {
 		return err
 	}
 
-	if !isRelation {
+	if !found {
 		relationModel, err := GetRelationModel(relation)
 
 		if err != nil {
@@ -574,7 +584,7 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 			Active:         true,
 		}
 
-		found, _, err = db.IsRelation(relationRequest)
+		found, _, err = db.GetRelation(relationRequest)
 
 		if err != nil {
 			return results, total, err
@@ -717,7 +727,7 @@ func (db *DbNoSqlV2) GetNotFollowers(id string, page int64, limit int64, search 
 		"birthDate": "$u.birthDate",
 	}}
 	matchName := bson.M{"$match": bson.M{
-		"_id":  bson.M{"$ne": id},
+		"_id":  bson.M{"$ne": objId},
 		"name": bson.M{"$regex": search, "$options": "im"},
 	}}
 	count := bson.M{"$count": "total"}
@@ -745,7 +755,7 @@ func (db *DbNoSqlV2) GetNotFollowers(id string, page int64, limit int64, search 
 
 /* GetUsersTweets returns the followers' tweets */
 func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
-	var results []interface{}
+	var results interface{}
 	var total int64
 	var err error
 
@@ -806,25 +816,31 @@ func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTw
 
 	if isOnlyTweets {
 		var dbResults []*m.Tweet
+		var reqResults []*mr.Tweet
 
 		dbResults, total, err = getResults[m.Tweet](db, "relation", conditionsCount, conditionsAgg)
 
 		if err == nil {
 			for _, tweetModel := range dbResults {
 				tweetRequest := GetTweetRequest(*tweetModel)
-				results = append(results, &tweetRequest)
+				reqResults = append(reqResults, &tweetRequest)
 			}
+
+			results = reqResults
 		}
 	} else {
 		var dbResults []*m.UserTweet
+		var reqResults []*mr.UserTweet
 
 		dbResults, total, err = getResults[m.UserTweet](db, "relation", conditionsCount, conditionsAgg)
 
 		if err == nil {
 			for _, userTweetModel := range dbResults {
 				userTweetRequest := GetUserTweetRequest(*userTweetModel)
-				results = append(results, &userTweetRequest)
+				reqResults = append(reqResults, &userTweetRequest)
 			}
+
+			results = reqResults
 		}
 	}
 

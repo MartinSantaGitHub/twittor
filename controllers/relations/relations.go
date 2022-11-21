@@ -19,6 +19,13 @@ import (
 /* Creates creates a new relation between two users */
 func Create(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+
+	if jwt.UserId == id {
+		http.Error(w, fmt.Sprintf("Error: %s", "relation with oneself not allowed (userId and userRelationId are the same)"), http.StatusBadRequest)
+
+		return
+	}
+
 	relation, err := getRelationRequestModel(id)
 
 	if err != nil {
@@ -69,6 +76,8 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 
 /* IsRelation checks if exist a relation */
 func IsRelation(w http.ResponseWriter, r *http.Request) {
+	var isRelation bool
+
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
 	relation, err := getRelationRequestModel(id)
 
@@ -78,12 +87,16 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isRelation, _, err := db.DbConn.IsRelation(relation)
+	found, relationDb, err := db.DbConn.GetRelation(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to obtain a relation: %s", err.Error()), http.StatusInternalServerError)
 
 		return
+	}
+
+	if found {
+		isRelation = relationDb.Active
 	}
 
 	response := res.IsRelationResponse{
@@ -190,10 +203,6 @@ func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 
 func getRelationRequestModel(userRelationId string) (req.Relation, error) {
 	var relation req.Relation
-
-	if jwt.UserId == userRelationId {
-		return relation, fmt.Errorf("relation with oneself not allowed (userId and userRelationId are the same)")
-	}
 
 	relation.UserId = jwt.UserId
 	relation.UserRelationId = userRelationId

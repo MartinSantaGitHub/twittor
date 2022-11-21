@@ -30,7 +30,7 @@ type DbAdapter interface {
 	InsertTweet(tweet mr.Tweet) (string, error)
 
 	// Relations
-	IsRelation(relation mr.Relation) (bool, mr.Relation, error)
+	GetRelation(relation mr.Relation) (bool, mr.Relation, error)
 	InsertRelation(relation mr.Relation) error
 	DeleteRelationFisical(relation mr.Relation) error
 	DeleteRelationLogical(relation mr.Relation) error

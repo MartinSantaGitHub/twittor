@@ -113,7 +113,7 @@ func (db *DbSql) InsertTweet(tweet mr.Tweet) (string, error) {
 // region "Relations"
 
 /* IsRelation verifies if exist a relation in the DB */
-func (db *DbSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
+func (db *DbSql) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	var result mr.Relation
 
 	log.Fatal("Method not implemented")
@@ -164,7 +164,7 @@ func (db *DbSql) GetNotFollowers(id string, page int64, limit int64, search stri
 
 /* GetUsersTweets returns the followers' tweets */
 func (db *DbSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
-	var results interface{}
+	var results []interface{}
 	var total int64
 	var err error
 
