@@ -433,7 +433,7 @@ func (db *DbNoSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 
 	result = GetRelationRequest(relationModel)
 
-	return true, result, err
+	return result.Active, result, err
 }
 
 /* InsertRelation creates a relation into the DB */
