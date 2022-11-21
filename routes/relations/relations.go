@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-/* InsertRelation Inserts a new relation between two users */
+/* InsertRelation inserts a new relation between two users */
 func Insert(router *mux.Router) {
 	router.HandleFunc("/relation", helpers.MultipleMiddleware(relations.Create,
 		middlewares.CheckDB,
@@ -16,7 +16,7 @@ func Insert(router *mux.Router) {
 		middlewares.ValidateQueryId)).Methods("POST")
 }
 
-/* Delete Deletes a relation */
+/* Delete deletes a relation */
 func Delete(router *mux.Router) {
 	router.HandleFunc("/relation", helpers.MultipleMiddleware(relations.Delete,
 		middlewares.CheckDB,
@@ -24,7 +24,7 @@ func Delete(router *mux.Router) {
 		middlewares.ValidateQueryId)).Methods("DELETE")
 }
 
-/* IsRelation check if exist a relation */
+/* IsRelation checks if exist a relation */
 func IsRelation(router *mux.Router) {
 	router.HandleFunc("/relation", helpers.MultipleMiddleware(relations.IsRelation,
 		middlewares.CheckDB,
@@ -32,7 +32,7 @@ func IsRelation(router *mux.Router) {
 		middlewares.ValidateQueryId)).Methods("GET")
 }
 
-/* GetUsers Gets a list of users */
+/* GetUsers gets a list of users */
 func GetUsers(router *mux.Router) {
 	router.HandleFunc("/relation/users", helpers.MultipleMiddleware(relations.GetUsers,
 		middlewares.CheckDB,
@@ -40,7 +40,7 @@ func GetUsers(router *mux.Router) {
 		middlewares.ValidatePageLimit)).Methods("GET")
 }
 
-/* GetUsersTweets Returns the followers' tweets */
+/* GetUsersTweets returns the followers' tweets */
 func GetUsersTweets(router *mux.Router) {
 	router.HandleFunc("/relation/tweets", helpers.MultipleMiddleware(relations.GetUsersTweets,
 		middlewares.CheckDB,

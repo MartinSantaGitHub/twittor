@@ -8,14 +8,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-/* Insert Allows to create a new tweet */
+/* Insert allows to create a new tweet */
 func Insert(router *mux.Router) {
 	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.Insert,
 		middlewares.CheckDB,
 		middlewares.ValidateJWT)).Methods("POST")
 }
 
-/* GetTweets Gets an user's tweets */
+/* GetTweets gets an user's tweets */
 func GetTweets(router *mux.Router) {
 	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.GetTweets,
 		middlewares.CheckDB,
@@ -24,7 +24,7 @@ func GetTweets(router *mux.Router) {
 		middlewares.ValidatePageLimit)).Methods("GET")
 }
 
-/* Delete Deletes an user's tweet */
+/* Delete deletes an user's tweet */
 func Delete(router *mux.Router) {
 	router.HandleFunc("/tweet", helpers.MultipleMiddleware(tweets.Delete,
 		middlewares.CheckDB,

@@ -1,9 +1,9 @@
 package response
 
-import "models"
+import mr "models/request"
 
-/* TweetsResponse Response model for the GetTweets and GetUsersTweets endpoints */
+/* TweetsResponse is the response model for the GetTweets and GetUsersTweets endpoints */
 type TweetsResponse struct {
-	Tweets []*models.Tweet `json:"tweets"`
-	Total  int64           `json:"total"`
+	Tweets []*mr.Tweet `json:"tweets"`
+	Total  int64       `json:"total"`
 }

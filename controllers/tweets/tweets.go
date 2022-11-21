@@ -2,26 +2,24 @@ package tweets
 
 import (
 	"encoding/json"
-	"helpers"
-	"jwt"
 	"net/http"
 	"time"
 
-	db "db/tweets"
-	"models"
-	mr "models/response"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"db"
+	"helpers"
+	"jwt"
+	req "models/request"
+	res "models/response"
 )
 
-/* InsertTweet permits to insert a tweet in the DB */
+/* InsertTweet creates a tweet in the DB */
 func Insert(w http.ResponseWriter, r *http.Request) {
-	var tweet models.Tweet
+	var tweet req.Tweet
 
 	err := json.NewDecoder(r.Body).Decode(&tweet)
 
 	if err != nil {
-		http.Error(w, "Invalid data"+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid data: "+err.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -32,16 +30,14 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	objId, _ := primitive.ObjectIDFromHex(jwt.UserId)
-
-	registry := models.Tweet{
-		UserId:  objId,
+	registry := req.Tweet{
+		UserId:  jwt.UserId,
 		Message: tweet.Message,
 		Date:    time.Now(),
 		Active:  true,
 	}
 
-	_, status, err := db.InsertTweet(registry)
+	_, err = db.DbConn.InsertTweet(registry)
 
 	if err != nil {
 		http.Error(w, "An error occurred trying to insert a new registry into the DB: "+err.Error(), http.StatusInternalServerError)
@@ -49,22 +45,16 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !status {
-		http.Error(w, "Could not be inserted a registry into the DB", http.StatusNotModified)
-
-		return
-	}
-
 	w.WriteHeader(http.StatusCreated)
 }
 
-/* GetTweets Gets a user's tweets */
+/* GetTweets gets an user's tweets */
 func GetTweets(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
 	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
 	limit := r.Context().Value(helpers.RequestLimitKey{}).(int64)
 
-	results, total, err := db.GetTweets(id, page, limit)
+	results, total, err := db.DbConn.GetTweets(id, page, limit)
 
 	if err != nil {
 		http.Error(w, "An error has happened trying to get the tweets from the DB "+err.Error(), http.StatusInternalServerError)
@@ -75,7 +65,7 @@ func GetTweets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	response := mr.TweetsResponse{
+	response := res.TweetsResponse{
 		Tweets: results,
 		Total:  total,
 	}
@@ -83,13 +73,13 @@ func GetTweets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-/* Delete Deletes a tweet that belongs to an user */
+/* Delete deletes a tweet that belongs to an user */
 func Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	err := db.DeleteLogical(id)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	err := db.DbConn.DeleteTweetLogical(id)
 
 	if err != nil {
-		http.Error(w, "An error occurred trying to delete the tweet "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "An error occurred trying to delete the tweet: "+err.Error(), http.StatusInternalServerError)
 
 		return
 	}

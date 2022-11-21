@@ -1,25 +1,25 @@
 package jwt
 
 import (
-	"errors"
+	"db"
 	"helpers"
-	"models"
+	mr "models/request"
+
+	"errors"
 	"strings"
 	"time"
-
-	db "db/users"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-/* Email Email used in all the endpoints */
+/* Email is used in all the endpoints */
 var Email string
 
-/* UserId It's the User Id that is going to be used in all the endpoints */
+/* UserId is the User Id that is going to be used in all the endpoints */
 var UserId string
 
-/* GenerateJWT Generates the encryption with JWT */
-func GenerateJWT(user models.User) (string, error) {
+/* GenerateJWT generates the encryption with JWT */
+func GenerateJWT(user mr.User) (string, error) {
 	myKey := []byte(helpers.GetEnvVariable("JWT_SIGNING_KEY"))
 	payload := jwt.MapClaims{
 		"email":      user.Email,
@@ -29,7 +29,7 @@ func GenerateJWT(user models.User) (string, error) {
 		"biography":  user.Biography,
 		"location":   user.Location,
 		"web_site":   user.WebSite,
-		"_id":        user.Id.Hex(),
+		"_id":        user.Id,
 		"exp":        time.Now().Add(time.Hour * 24).Unix(),
 	}
 
@@ -44,13 +44,13 @@ func GenerateJWT(user models.User) (string, error) {
 }
 
 /* ProcessJWT process the JWT received in the request */
-func ProcessJWT(token string) (*models.Claim, bool, string, error) {
+func ProcessJWT(token string) (*mr.Claim, error) {
 	myKey := []byte(helpers.GetEnvVariable("JWT_SIGNING_KEY"))
-	claims := &models.Claim{}
+	claims := &mr.Claim{}
 	splitToken := strings.Split(token, "Bearer")
 
 	if len(splitToken) != 2 {
-		return claims, false, "", errors.New("token format invalid")
+		return claims, errors.New("token format invalid")
 	}
 
 	token = strings.TrimSpace(splitToken[1])
@@ -60,21 +60,25 @@ func ProcessJWT(token string) (*models.Claim, bool, string, error) {
 	})
 
 	if !tkn.Valid {
-		return claims, false, "", errors.New("invalid token")
+		return claims, errors.New("invalid token")
 	}
 
 	if err != nil {
-		return claims, false, "", err
+		return claims, err
 	}
 
-	_, isFound, id := db.IsUser(claims.Email)
+	isFound, _, err := db.DbConn.IsUser(claims.Email)
+
+	if err != nil {
+		return claims, err
+	}
 
 	if !isFound {
-		return claims, false, "", errors.New("user not found")
+		return claims, errors.New("user not found")
 	}
 
 	Email = claims.Email
-	UserId = claims.Id.Hex()
+	UserId = claims.Id
 
-	return claims, isFound, id, nil
+	return claims, nil
 }

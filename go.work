@@ -7,16 +7,19 @@ use (
 	./controllers/tweets
 	./controllers/users
 	./db
-	./db/relations
-	./db/tweets
-	./db/users
+	./db/nosql
+	./db/nosqlv2
+	./db/relational
 	./handlers
 	./helpers
 	./jwt
 	./middlewares
 	./models
+	./models/nosql
+	./models/nosqlv2
+	./models/relational
+	./models/request
 	./models/response
-	./models/result
 	./routes/relations
 	./routes/tweets
 	./routes/users

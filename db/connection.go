@@ -1,49 +1,72 @@
 package db
 
 import (
-	"context"
-	"fmt"
 	"helpers"
+	"log"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	mr "models/request"
+
+	dns "db/nosql"
+	dnsv2 "db/nosqlv2"
+	dr "db/relational"
 )
 
-func connectDB() *mongo.Client {
-	clientOptions := options.Client().ApplyURI(helpers.GetEnvVariable("MONGO_CONN"))
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+type DbAdapter interface {
+	// Connection
+	Connect() error
+	IsConnection() bool
 
-	if err != nil {
-		fmt.Println(err.Error())
+	// Users
+	GetProfile(id string) (mr.User, error)
+	InsertUser(user mr.User) (string, error)
+	IsUser(email string) (bool, mr.User, error)
+	ModifyRegistry(id string, user mr.User) error
+	TryLogin(email string, password string) (mr.User, bool)
 
-		return client
-	}
+	// Tweets
+	DeleteTweetFisical(id string) error
+	DeleteTweetLogical(id string) error
+	GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int64, error)
+	InsertTweet(tweet mr.Tweet) (string, error)
 
-	err = client.Ping(context.TODO(), nil)
-
-	if err != nil {
-		fmt.Println(err.Error())
-
-		return client
-	}
-
-	fmt.Println("Connection successful to the DB")
-
-	return client
+	// Relations
+	IsRelation(relation mr.Relation) (bool, mr.Relation, error)
+	InsertRelation(relation mr.Relation) error
+	DeleteRelationFisical(relation mr.Relation) error
+	DeleteRelationLogical(relation mr.Relation) error
+	GetFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
+	GetNotFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
+	GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error)
 }
 
-/* MongoConnection is the connection object to the Database */
-var MongoConnection = connectDB()
+func getDataBaseConnector(dbType string) DbAdapter {
+	switch dbType {
+	case "NoSql":
+		dbNoSql := new(dns.DbNoSql)
 
-/* CheckConnection makes a ping to the Database */
-func IsConnection() bool {
-	err := MongoConnection.Ping(context.TODO(), nil)
+		dbNoSql.Connect()
 
-	if err != nil {
-		fmt.Println(err.Error())
+		return dbNoSql
+	case "NoSqlV2":
+		dbNoSqlV2 := new(dnsv2.DbNoSqlV2)
 
-		return false
+		dbNoSqlV2.Connect()
+
+		return dbNoSqlV2
+	case "Sql":
+		dbSql := new(dr.DbSql)
+
+		dbSql.Connect()
+
+		return dbSql
+	default:
+		log.Fatal("No database connector selected")
+
+		return nil
 	}
-
-	return true
 }
+
+var dbType string = helpers.GetEnvVariable("DB_TYPE")
+
+/* DbConn is the connection to the database */
+var DbConn DbAdapter = getDataBaseConnector(dbType)

@@ -7,20 +7,19 @@ import (
 	"strconv"
 	"strings"
 
-	db "db/relations"
+	"db"
 	"helpers"
 	"jwt"
-	"models"
-	mr "models/response"
-	mres "models/result"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	req "models/request"
+	res "models/response"
 )
 
-/* Creates a new relation between two users */
+// region "Actions"
+
+/* Creates creates a new relation between two users */
 func Create(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	relation, err := getRelationModel(id)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	relation, err := getRelationRequestModel(id)
 
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
@@ -28,7 +27,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.InsertRelation(relation)
+	err = db.DbConn.InsertRelation(relation)
 
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -46,10 +45,10 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-/* Delete Deletes a relation */
+/* Delete deletes a relation */
 func Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	relation, err := getRelationModel(id)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	relation, err := getRelationRequestModel(id)
 
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
@@ -57,7 +56,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.DeleteLogical(relation)
+	err = db.DbConn.DeleteRelationLogical(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to delete a relation: %s", err.Error()), http.StatusInternalServerError)
@@ -68,10 +67,10 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-/* IsRelation check if exist a relation */
+/* IsRelation checks if exist a relation */
 func IsRelation(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	relation, err := getRelationModel(id)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	relation, err := getRelationRequestModel(id)
 
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
@@ -79,7 +78,7 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isRelation, _, err := db.IsRelation(relation)
+	isRelation, _, err := db.DbConn.IsRelation(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to obtain a relation: %s", err.Error()), http.StatusInternalServerError)
@@ -87,7 +86,7 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := mr.IsRelationResponse{
+	response := res.IsRelationResponse{
 		Status: isRelation,
 	}
 
@@ -95,9 +94,9 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-/* GetUsers Gets a list of users */
+/* GetUsers gets a list of users */
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	var results []*models.User
+	var results []*req.User
 	var total int64
 	var err error
 
@@ -106,21 +105,19 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	searchType := r.URL.Query().Get("type")
 
-	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
-
 	switch searchType {
 
 	case "new":
-		results, total, err = db.GetNotFollowers(id, page, limit, search)
+		results, total, err = db.DbConn.GetNotFollowers(jwt.UserId, page, limit, search)
 	case "follow":
-		results, total, err = db.GetFollowers(id, page, limit, search)
+		results, total, err = db.DbConn.GetFollowers(jwt.UserId, page, limit, search)
 	default:
 		http.Error(w, "Invalid type param value. It has to be \"follow\" or \"new\"", http.StatusBadRequest)
 
 		return
 	}
 
-	//results, total, err = db.GetUsers(jwt.UserId, page, limit, search, searchType)
+	//results, total, err = db.DbConn.GetUsers(jwt.UserId, page, limit, search, searchType)
 
 	if err != nil {
 		http.Error(w, "Error getting the users: "+err.Error(), http.StatusInternalServerError)
@@ -131,7 +128,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	response := mr.UsersResponse{
+	response := res.UsersResponse{
 		Users: results,
 		Total: total,
 	}
@@ -139,7 +136,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-/* GetUsersTweets Returns the followers' tweets */
+/* GetUsersTweets returns the followers' tweets */
 func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 	var response interface{}
 
@@ -159,9 +156,7 @@ func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
-
-	results, total, err := db.GetUsersTweets(id, page, limit, isOnlyTweets)
+	results, total, err := db.DbConn.GetUsersTweets(jwt.UserId, page, limit, isOnlyTweets)
 
 	if err != nil {
 		http.Error(w, "Error getting the tweets: "+err.Error(), http.StatusInternalServerError)
@@ -175,13 +170,13 @@ func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(http.StatusOK)
 
 	if isOnlyTweets {
-		response = mr.TweetsResponse{
-			Tweets: results.([]*models.Tweet),
+		response = res.TweetsResponse{
+			Tweets: results.([]*req.Tweet),
 			Total:  total,
 		}
 	} else {
-		response = mr.UserTweetsResponse{
-			Tweets: results.([]*mres.UserTweet),
+		response = res.UserTweetsResponse{
+			Tweets: results.([]*req.UserTweet),
 			Total:  total,
 		}
 	}
@@ -189,18 +184,22 @@ func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getRelationModel(userRelationId primitive.ObjectID) (models.Relation, error) {
-	var relation models.Relation
+// endregion
 
-	userId, _ := primitive.ObjectIDFromHex(jwt.UserId)
+// region "Helpers"
 
-	if userId == userRelationId {
+func getRelationRequestModel(userRelationId string) (req.Relation, error) {
+	var relation req.Relation
+
+	if jwt.UserId == userRelationId {
 		return relation, fmt.Errorf("relation with oneself not allowed (userId and userRelationId are the same)")
 	}
 
-	relation.UserId = userId
+	relation.UserId = jwt.UserId
 	relation.UserRelationId = userRelationId
 	relation.Active = true
 
 	return relation, nil
 }
+
+// endregion

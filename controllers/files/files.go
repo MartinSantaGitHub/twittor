@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-/* GetRequestFile Gets a file from the request */
+/* GetRequestFile gets a file from the request */
 func GetRequestFile(field string, r *http.Request) (multipart.File, *multipart.FileHeader, error) {
 	file, header, err := r.FormFile(field)
 
@@ -19,7 +19,7 @@ func GetRequestFile(field string, r *http.Request) (multipart.File, *multipart.F
 	return file, header, nil
 }
 
-/* SetFileToResponse Sets a file to the response */
+/* SetFileToResponse sets a file to the response */
 func SetFileToResponse(filepath string, w http.ResponseWriter, isRemote bool) error {
 	var file io.ReadCloser
 	var err error

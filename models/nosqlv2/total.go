@@ -1,4 +1,4 @@
-package result
+package nosqlv2
 
 /* TotalResult Model used to obtain the total records from a query */
 type TotalResult struct {

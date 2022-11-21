@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"helpers"
-	"models"
+	mr "models/request"
 	"net/http"
 	"net/mail"
 )
 
 func ValidateEmail(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user models.User
+		var user mr.User
 
 		err := json.NewDecoder(r.Body).Decode(&user)
 

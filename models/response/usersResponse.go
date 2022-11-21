@@ -1,9 +1,9 @@
 package response
 
-import "models"
+import mr "models/request"
 
-/* UsersResponse Response model for the GetUsers endpoint */
+/* UsersResponse is the response model for the GetUsers endpoint */
 type UsersResponse struct {
-	Users []*models.User `json:"users"`
-	Total int64          `json:"total"`
+	Users []*mr.User `json:"users"`
+	Total int64      `json:"total"`
 }

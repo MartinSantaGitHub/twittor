@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	if !db.IsConnection() {
+	if !db.DbConn.IsConnection() {
 		log.Fatal("No connection to the DB")
 	}
 

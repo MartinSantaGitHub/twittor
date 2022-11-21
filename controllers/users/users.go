@@ -3,25 +3,25 @@ package users
 import (
 	"encoding/json"
 	"fmt"
-	"helpers"
-	"jwt"
 	"mime/multipart"
-	"models"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	fc "controllers/files"
-	db "db/users"
-	mr "models/response"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"db"
+	"helpers"
+	"jwt"
+	req "models/request"
+	res "models/response"
 )
 
-/* Insert Permits to create a user in the DB */
+// region "Actions"
+
+/* Insert permits to create a user in the DB */
 func Insert(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
+	user := r.Context().Value(helpers.RequestUserKey{}).(req.User)
 
 	if len(user.Password) < 6 {
 		http.Error(w, "The password must have at least 6 characters", http.StatusBadRequest)
@@ -29,7 +29,13 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, isFound, _ := db.IsUser(user.Email)
+	isFound, _, err := db.DbConn.IsUser(user.Email)
+
+	if err != nil {
+		http.Error(w, "Something went wrong: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
 
 	if isFound {
 		http.Error(w, "The user already exists", http.StatusBadRequest)
@@ -37,16 +43,10 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, status, err := db.InsertUser(user)
+	_, err = db.DbConn.InsertUser(user)
 
 	if err != nil {
-		http.Error(w, "There was an error trying to regist the user"+err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	if !status {
-		http.Error(w, "The user registry could not be inserted into the DB", http.StatusBadRequest)
+		http.Error(w, "There was an error trying to regist the user"+err.Error(), http.StatusInternalServerError)
 
 		return
 	}
@@ -54,10 +54,10 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-/* Login Does the login */
+/* Login does the login */
 func Login(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(helpers.RequestUserKey{}).(models.User)
-	userDb, isUser := db.TryLogin(user.Email, user.Password)
+	user := r.Context().Value(helpers.RequestUserKey{}).(req.User)
+	userDb, isUser := db.DbConn.TryLogin(user.Email, user.Password)
 
 	if !isUser {
 		http.Error(w, "User and/or password invalid", http.StatusBadRequest)
@@ -68,12 +68,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	jwtKey, err := jwt.GenerateJWT(userDb)
 
 	if err != nil {
-		http.Error(w, "Something went wrong"+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong: "+err.Error(), http.StatusInternalServerError)
 
 		return
 	}
 
-	response := mr.LoginResponse{
+	response := res.LoginResponse{
 		Token: jwtKey,
 	}
 
@@ -91,10 +91,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* GetProfile Gets an user profile */
+/* GetProfile gets an user profile */
 func GetProfile(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	profile, err := db.GetProfile(id)
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	profile, err := db.DbConn.GetProfile(id)
 
 	if err != nil {
 		http.Error(w, "An error occurred when trying to find a registry in the DB: "+err.Error(), http.StatusInternalServerError)
@@ -106,20 +106,19 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profile)
 }
 
-/* Modify Allows to modify a registry */
+/* Modify allows to modify a registry */
 func Modify(w http.ResponseWriter, r *http.Request) {
-	var user models.User
+	var user req.User
 
 	err := json.NewDecoder(r.Body).Decode(&user)
 
 	if err != nil {
-		http.Error(w, "Invalid data"+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid data: "+err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
-	status, err := db.ModifyRegistry(id, user)
+	err = db.DbConn.ModifyRegistry(jwt.UserId, user)
 
 	if err != nil {
 		http.Error(w, "An error has occurred when trying to modify the registry: "+err.Error(), http.StatusBadRequest)
@@ -127,17 +126,13 @@ func Modify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !status {
-		http.Error(w, "The registry was not modified", http.StatusNotModified)
-
-		return
-	}
-
 	w.WriteHeader(http.StatusOK)
 }
 
-/* Upload Uploads an user's avatar */
+/* Upload uploads an user's avatar */
 func UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	var filename string
+
 	file, header, err := fc.GetRequestFile("avatar", r)
 
 	if err != nil {
@@ -147,14 +142,11 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
-	filename := ""
 
 	if isRemote {
-		var profile models.User
+		var profile req.User
 
-		id, _ := primitive.ObjectIDFromHex(jwt.UserId)
-
-		profile, err = db.GetProfile(id)
+		profile, err = db.DbConn.GetProfile(jwt.UserId)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -173,7 +165,7 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.User{
+	user := req.User{
 		Avatar: filename,
 	}
 
@@ -188,8 +180,10 @@ func UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-/* Upload Uploads an user's banner */
+/* Upload uploads an user's banner */
 func UploadBanner(w http.ResponseWriter, r *http.Request) {
+	var filename string
+
 	file, header, err := fc.GetRequestFile("banner", r)
 
 	if err != nil {
@@ -199,14 +193,11 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
-	filename := ""
 
 	if isRemote {
-		var profile models.User
+		var profile req.User
 
-		id, _ := primitive.ObjectIDFromHex(jwt.UserId)
-
-		profile, err = db.GetProfile(id)
+		profile, err = db.DbConn.GetProfile(jwt.UserId)
 
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -231,7 +222,7 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.User{
+	user := req.User{
 		Banner: filename,
 	}
 
@@ -246,10 +237,12 @@ func UploadBanner(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-/* GetAvatar Gets the user's file avatar */
+/* GetAvatar gets the user's file avatar */
 func GetAvatar(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	profile, err := db.GetProfile(id)
+	var filepath string
+
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	profile, err := db.DbConn.GetProfile(id)
 
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
@@ -258,10 +251,11 @@ func GetAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
-	filepath := profile.Avatar
 
 	if !isRemote {
 		filepath = fmt.Sprintf("uploads/avatars/%s", profile.Avatar)
+	} else {
+		filepath = profile.Avatar
 	}
 
 	err = fc.SetFileToResponse(filepath, w, isRemote)
@@ -276,10 +270,12 @@ func GetAvatar(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(http.StatusOK)
 }
 
-/* GetBanner Gets the user's file banner */
+/* GetBanner gets the user's file banner */
 func GetBanner(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(helpers.RequestQueryIdKey{}).(primitive.ObjectID)
-	profile, err := db.GetProfile(id)
+	var filepath string
+
+	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
+	profile, err := db.DbConn.GetProfile(id)
 
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
@@ -288,10 +284,11 @@ func GetBanner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	isRemote, _ := strconv.ParseBool(helpers.GetEnvVariable("FILES_REMOTE"))
-	filepath := profile.Banner
 
 	if !isRemote {
 		filepath = fmt.Sprintf("uploads/banners/%s", profile.Banner)
+	} else {
+		filepath = profile.Banner
 	}
 
 	err = fc.SetFileToResponse(filepath, w, isRemote)
@@ -305,6 +302,10 @@ func GetBanner(w http.ResponseWriter, r *http.Request) {
 	// This line is optional because the response defaults to 200 OK
 	//w.WriteHeader(http.StatusOK)
 }
+
+// endregion
+
+// region "Helpers"
 
 func uploadLocal(filepath string, header *multipart.FileHeader, file multipart.File) (string, error) {
 	extension := strings.Split(header.Filename, ".")[1]
@@ -340,13 +341,14 @@ func uploadRemote(file multipart.File, fileUrl string, tag string) (string, erro
 	return fileUrl, nil
 }
 
-func saveToDB(user models.User) error {
-	id, _ := primitive.ObjectIDFromHex(jwt.UserId)
-	status, err := db.ModifyRegistry(id, user)
+func saveToDB(user req.User) error {
+	err := db.DbConn.ModifyRegistry(jwt.UserId, user)
 
-	if err != nil || !status {
+	if err != nil {
 		return fmt.Errorf("Error when saving the file in the DB: " + err.Error())
 	}
 
 	return nil
 }
+
+// endregion
