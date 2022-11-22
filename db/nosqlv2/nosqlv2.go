@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"helpers"
@@ -375,8 +376,22 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 
 /* GetRelation obtains a relation from the DB if exist */
 func (db *DbNoSqlV2) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
-	var err error
 	var result mr.Relation
+	var err error
+
+	objUserRelationId, err := getObjectId(relation.UserRelationId)
+
+	profile, isFound, err := db.GetProfile(relation.UserRelationId)
+
+	if err != nil {
+		return err
+	}
+
+	if !isFound {
+		http.Error(w, "No registry found in the DB", http.StatusNoContent)
+
+		return
+	}
 
 	// relationModel, err := GetRelationModel(relation)
 

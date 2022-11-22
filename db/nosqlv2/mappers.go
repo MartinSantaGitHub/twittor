@@ -60,24 +60,24 @@ func GetUserRequest(userModel m.User) mr.User {
 }
 
 /* GetTweetModel obtains the DB Tweet model */
-func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
-	var tweetModel m.Tweet
+// func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
+// 	var tweetModel m.Tweet
 
-	objId, err := getObjectId(requestModel.Id)
+// 	objId, err := getObjectId(requestModel.Id)
 
-	if err != nil {
-		return tweetModel, err
-	}
+// 	if err != nil {
+// 		return tweetModel, err
+// 	}
 
-	tweetModel = m.Tweet{
-		Id:      objId,
-		Message: requestModel.Message,
-		Date:    requestModel.Date,
-		Active:  requestModel.Active,
-	}
+// 	tweetModel = m.Tweet{
+// 		Id:      objId,
+// 		Message: requestModel.Message,
+// 		Date:    requestModel.Date,
+// 		Active:  requestModel.Active,
+// 	}
 
-	return tweetModel, nil
-}
+// 	return tweetModel, nil
+// }
 
 /* GetTweetRequest obtains the Request Tweet model */
 func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
