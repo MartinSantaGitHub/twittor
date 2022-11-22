@@ -2,7 +2,6 @@ package nosqlv2
 
 import (
 	"context"
-	//"errors"
 	"fmt"
 	"log"
 	"os"
@@ -235,105 +234,69 @@ func (db *DbNoSqlV2) TryLogin(email string, password string) (mr.User, bool) {
 
 /* Delete deletes a tweet in the DB */
 func (db *DbNoSqlV2) DeleteTweetFisical(id string, userId string) error {
-	var err error
-	// var tweetModel m.Tweet
+	objId, err := getObjectId(id)
 
-	// objId, err := getObjectId(id)
+	if err != nil {
+		return err
+	}
 
-	// if err != nil {
-	// 	return err
-	// }
+	objUserId, _ := getObjectId(userId)
+	update := bson.M{
+		"$pull": bson.M{
+			"tweets": bson.D{primitive.E{Key: "_id", Value: objId}},
+		},
+	}
 
-	// col := getCollection(db, "twitton", "tweet")
-	// ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	// defer cancelFind()
+	defer cancel()
 
-	// condition := bson.M{
-	// 	"_id": objId,
-	// }
+	_, err = col.UpdateByID(ctx, objUserId, update)
 
-	// err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+	if err != nil {
+		return err
+	}
 
-	// if err != nil {
-	// 	return err
-	// }
-
-	// objUserId, _ := getObjectId(userId)
-
-	// if objUserId != tweetModel.UserId {
-	// 	return errors.New("invalid operation - cannot delete a non-owner tweet")
-	// }
-
-	// condition = bson.M{
-	// 	"_id":    objId,
-	// 	"userId": objUserId,
-	// }
-
-	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	// defer cancel()
-
-	// _, err = col.DeleteOne(ctx, condition)
-
-	return err
+	return nil
 }
 
 /* DeleteLogical inactivates a tweet in the DB */
 func (db *DbNoSqlV2) DeleteTweetLogical(id string, userId string) error {
-	var err error
-	// var tweetModel m.Tweet
+	objId, err := getObjectId(id)
 
-	// objId, err := getObjectId(id)
+	if err != nil {
+		return err
+	}
 
-	// if err != nil {
-	// 	return err
-	// }
+	objUserId, _ := getObjectId(userId)
+	filter := bson.M{
+		"_id":        objUserId,
+		"tweets._id": objId,
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"tweets.$.active": false,
+		},
+	}
 
-	// col := getCollection(db, "twitton", "tweet")
-	// ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	// defer cancelFind()
+	defer cancel()
 
-	// condition := bson.M{
-	// 	"_id": objId,
-	// }
+	_, err = col.UpdateOne(ctx, filter, update)
 
-	// err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+	if err != nil {
+		return err
+	}
 
-	// if err != nil {
-	// 	return err
-	// }
-
-	// objUserId, _ := getObjectId(userId)
-
-	// if objUserId != tweetModel.UserId {
-	// 	return errors.New("invalid operation - cannot delete a non-owner tweet")
-	// }
-
-	// condition = bson.M{
-	// 	"_id":    objId,
-	// 	"userId": objUserId,
-	// }
-	// updateString := bson.M{
-	// 	"$set": bson.M{"active": false},
-	// }
-
-	// // Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
-
-	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	// defer cancel()
-
-	// _, err = col.UpdateOne(ctx, condition, updateString)
-
-	return err
+	return nil
 }
 
 /* Get gets an user's tweets from the DB */
 func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int64, error) {
 	var results []*mr.Tweet
-	var tweetsDbResults []*m.Tweet
 
 	objId, err := getObjectId(id)
 
@@ -341,79 +304,69 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 		return results, 0, err
 	}
 
-	col := getCollection(db, "twitton", "tweet")
-	condition := bson.M{
-		"userId": objId,
-		"active": true,
+	// region Pipeline
+
+	matchId := bson.M{"$match": bson.M{"_id": objId}}
+	projectTweets := bson.M{"$project": bson.M{
+		"t":   "$tweets",
+		"_id": 0}}
+	unwindTweets := bson.M{"$unwind": bson.M{
+		"path":                       "$t",
+		"preserveNullAndEmptyArrays": false}}
+	filterTweets := bson.M{"$match": bson.M{"t.active": true}}
+	projectResult := bson.M{"$project": bson.M{
+		"_id":     "$t._id",
+		"message": "$t.message",
+		"date":    "$t.date",
+		"active":  "$t.active"}}
+	count := bson.M{"$count": "total"}
+	sort := bson.M{"$sort": bson.M{"date": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
+	basePipeline := []bson.M{matchId, projectTweets, unwindTweets, filterTweets, projectResult}
+	countPipeline := append(basePipeline, count)
+	aggPipeline := append(basePipeline, sort, skip, agLimit)
+
+	// endregion
+
+	dbResults, total, err := getResults[m.Tweet](db, "users", countPipeline, aggPipeline)
+
+	if err == nil {
+		for _, tweetModel := range dbResults {
+			tweetRequest := GetTweetRequest(*tweetModel)
+			results = append(results, &tweetRequest)
+		}
 	}
 
-	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancelCount()
-
-	total, err := col.CountDocuments(ctxCount, condition)
-
-	if err != nil {
-		return results, total, err
-	}
-
-	opts := options.Find()
-
-	opts.SetSort(bson.D{{Key: "date", Value: -1}})
-	opts.SetSkip((page - 1) * limit)
-	opts.SetLimit(limit)
-
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancelFind()
-
-	cursor, err := col.Find(ctxFind, condition, opts)
-
-	if err != nil {
-		return results, total, err
-	}
-
-	ctxCursor := context.TODO()
-
-	defer cursor.Close(ctxCursor)
-
-	err = cursor.All(ctxCursor, &tweetsDbResults)
-
-	if err != nil {
-		return results, total, err
-	}
-
-	for _, tweetModel := range tweetsDbResults {
-		tweetRequest := GetTweetRequest(*tweetModel)
-		results = append(results, &tweetRequest)
-	}
-
-	return results, total, nil
+	return results, total, err
 }
 
 /* InsertTweet inserts a tweet in the DB */
 func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
-	tweetModel, err := GetTweetModel(tweet)
-
-	if err != nil {
-		return "", err
+	objId, _ := getObjectId(tweet.UserId)
+	update := bson.M{
+		"$push": bson.M{
+			"tweets": bson.D{
+				primitive.E{Key: "_id", Value: primitive.NewObjectID()},
+				primitive.E{Key: "message", Value: tweet.Message},
+				primitive.E{Key: "date", Value: tweet.Date},
+				primitive.E{Key: "active", Value: tweet.Active},
+			},
+		},
 	}
 
-	col := getCollection(db, "twitton", "tweet")
+	col := getCollection(db, "twitton", "users")
 	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
-	result, err := col.InsertOne(ctx, tweetModel)
+	_, err := col.UpdateByID(ctx, objId, update)
 
 	if err != nil {
 		return "", err
 	}
 
-	objId := result.InsertedID.(primitive.ObjectID)
-
-	// The same goes with objId.Hex()
-	return objId.String(), nil
+	return "", nil
 }
 
 // endregion

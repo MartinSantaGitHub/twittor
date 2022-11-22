@@ -33,6 +33,8 @@ func GetUserModel(requestModel mr.User) (m.User, error) {
 		Location:  requestModel.Location,
 		WebSite:   requestModel.WebSite,
 		Password:  requestModel.Password,
+		Tweets:    []m.Tweet{},
+		Followers: []primitive.ObjectID{},
 	}
 
 	return userModel, nil
