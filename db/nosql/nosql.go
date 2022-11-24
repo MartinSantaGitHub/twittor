@@ -368,6 +368,16 @@ func (db *DbNoSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 /* InsertRelation creates a relation into the DB */
 func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	col := getCollection(db, "twittor", "relation")
+	_, isFound, err := db.GetProfile(relation.UserRelationId)
+
+	if err != nil {
+		return err
+	}
+
+	if !isFound {
+		return errors.New("no registry found in the DB")
+	}
+
 	isFound, relationDb, err := db.IsRelation(relation)
 
 	if err != nil {

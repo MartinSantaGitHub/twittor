@@ -372,21 +372,11 @@ func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 		return errors.New("no registry found in the DB")
 	}
 
-	isFound, _, err = db.IsRelation(relation)
-
-	if err != nil {
-		return err
-	}
-
-	if isFound {
-		return fmt.Errorf("the relation with the user %s already exist", relation.UserRelationId)
-	}
-
 	objId, _ := getObjectId(relation.UserId)
 	objUserFollowingId, _ := getObjectId(relation.UserRelationId)
 
 	update := bson.M{
-		"$push": bson.M{
+		"$addToSet": bson.M{
 			"following": objUserFollowingId,
 		},
 	}
