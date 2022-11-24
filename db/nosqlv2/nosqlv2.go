@@ -2,9 +2,9 @@ package nosqlv2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"helpers"
@@ -233,60 +233,9 @@ func (db *DbNoSqlV2) TryLogin(email string, password string) (mr.User, bool) {
 
 // region "Tweets"
 
-/* Delete deletes a tweet in the DB */
-func (db *DbNoSqlV2) DeleteTweetFisical(id string, userId string) error {
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return err
-	}
-
-	objUserId, _ := getObjectId(userId)
-	update := bson.M{
-		"$pull": bson.M{
-			"tweets": bson.D{primitive.E{Key: "_id", Value: objId}},
-		},
-	}
-
-	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancel()
-
-	_, err = col.UpdateByID(ctx, objUserId, update)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-/* DeleteLogical inactivates a tweet in the DB */
-func (db *DbNoSqlV2) DeleteTweetLogical(id string, userId string) error {
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return err
-	}
-
-	objUserId, _ := getObjectId(userId)
-	filter := bson.M{
-		"_id":        objUserId,
-		"tweets._id": objId,
-	}
-	update := bson.M{
-		"$set": bson.M{
-			"tweets.$.active": false,
-		},
-	}
-
-	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancel()
-
-	_, err = col.UpdateOne(ctx, filter, update)
+/* DeleteTweet deletes a tweet in the DB */
+func (db *DbNoSqlV2) DeleteTweet(id string, userId string) error {
+	err := db.deleteTweetLogical(id, userId)
 
 	if err != nil {
 		return err
@@ -336,6 +285,8 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 		for _, tweetModel := range dbResults {
 			tweetRequest := GetTweetRequest(*tweetModel)
 			results = append(results, &tweetRequest)
+
+			tweetRequest.UserId = ""
 		}
 	}
 
@@ -374,144 +325,95 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 
 // region "Relations"
 
-/* GetRelation obtains a relation from the DB if exist */
-func (db *DbNoSqlV2) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
-	var result mr.Relation
-	var err error
-
+/* IsRelation obtains a relation from the DB if exist */
+func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
+	objId, _ := getObjectId(relation.UserId)
 	objUserRelationId, err := getObjectId(relation.UserRelationId)
 
-	profile, isFound, err := db.GetProfile(relation.UserRelationId)
+	if err != nil {
+		return false, relation, err
+	}
+
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	filter := bson.M{
+		"_id": objId,
+		"following": bson.M{
+			"$in": []interface{}{
+				objUserRelationId,
+			}},
+	}
+
+	err = col.FindOne(ctx, filter).Err()
+
+	if err != nil && err == mongo.ErrNoDocuments {
+		return false, relation, nil
+	} else if err != nil && err != mongo.ErrNoDocuments {
+		return false, relation, err
+	}
+
+	relation.Active = true
+
+	return true, relation, nil
+}
+
+/* InsertRelation creates a relation into the DB */
+func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
+	_, isFound, err := db.GetProfile(relation.UserRelationId)
 
 	if err != nil {
 		return err
 	}
 
 	if !isFound {
-		http.Error(w, "No registry found in the DB", http.StatusNoContent)
-
-		return
+		return errors.New("no registry found in the DB")
 	}
 
-	// relationModel, err := GetRelationModel(relation)
+	isFound, _, err = db.IsRelation(relation)
 
-	// if err != nil {
-	// 	return false, result, err
-	// }
+	if err != nil {
+		return err
+	}
 
-	// col := getCollection(db, "twitton", "relation")
-	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	if isFound {
+		return fmt.Errorf("the relation with the user %s already exist", relation.UserRelationId)
+	}
 
-	// defer cancel()
+	objId, _ := getObjectId(relation.UserId)
+	objUserRelationId, _ := getObjectId(relation.UserRelationId)
 
-	// condition := bson.M{
-	// 	"userId":         relationModel.UserId,
-	// 	"userRelationId": relationModel.UserRelationId,
-	// }
+	update := bson.M{
+		"$push": bson.M{
+			"following": objUserRelationId,
+		},
+	}
 
-	// err = col.FindOne(ctx, condition).Decode(&relationModel)
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	// if err != nil && err == mongo.ErrNoDocuments {
-	// 	return false, result, nil
-	// }
+	defer cancel()
 
-	// result = GetRelationRequest(relationModel)
+	_, err = col.UpdateByID(ctx, objId, update)
 
-	return true, result, err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-/* InsertRelation creates a relation into the DB */
-func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
-	var err error
+/* DeleteRelation deletes a relation in the DB */
+func (db *DbNoSqlV2) DeleteRelation(relation mr.Relation) error {
+	err := db.deleteRelationFisical(relation)
 
-	// col := getCollection(db, "twitton", "relation")
-	// isFound, relationDb, err := db.GetRelation(relation)
+	if err != nil {
+		return err
+	}
 
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if !isFound {
-	// 	relationModel, err := GetRelationModel(relation)
-
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	ctxInsert, cancelInsert := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	// 	defer cancelInsert()
-
-	// 	_, err = col.InsertOne(ctxInsert, relationModel)
-
-	// 	return err
-	// }
-
-	// if relationDb.Active {
-	// 	return fmt.Errorf("the relation with the user id: %s already exists", relation.UserRelationId)
-	// }
-
-	// updateString := bson.M{
-	// 	"$set": bson.M{"active": true},
-	// }
-
-	// id, err := getObjectId(relationDb.Id)
-
-	// if err != nil {
-	// 	return err
-	// }
-
-	// ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	// defer cancelUpdate()
-
-	// _, err = col.UpdateByID(ctxUpdate, id, updateString)
-
-	return err
-}
-
-/* Delete deletes a relation in the DB */
-func (db *DbNoSqlV2) DeleteRelationFisical(relation mr.Relation) error {
-	var err error
-
-	// relationModel, err := GetRelationModel(relation)
-
-	// if err != nil {
-	// 	return err
-	// }
-
-	// col := getCollection(db, "twittor", "relation")
-	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	// defer cancel()
-
-	// _, err = col.DeleteOne(ctx, relationModel)
-
-	return err
-}
-
-/* DeleteLogical inactivates a relation in the DB */
-func (db *DbNoSqlV2) DeleteRelationLogical(relation mr.Relation) error {
-	var err error
-
-	// relationModel, err := GetRelationModel(relation)
-
-	// if err != nil {
-	// 	return err
-	// }
-
-	// col := getCollection(db, "twittor", "relation")
-	// updateString := map[string]map[string]bool{"$set": {"active": false}}
-
-	// // Also bson.M{"$set": bson.M{"active": false},} in the updateString
-
-	// ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	// defer cancel()
-
-	// _, err = col.UpdateOne(ctx, relationModel, updateString)
-
-	return err
+	return nil
 }
 
 /* GetUsers gets a list of users */
@@ -519,7 +421,7 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 	var results []*mr.User
 	var total int64
 
-	col := getCollection(db, "twittor", "users")
+	col := getCollection(db, "twitton", "users")
 
 	query := bson.M{
 		"name": bson.M{"$regex": search, "$options": "im"},
@@ -567,7 +469,7 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 			Active:         true,
 		}
 
-		isFound, relationDb, err := db.GetRelation(relationRequest)
+		isFound, relationDb, err := db.IsRelation(relationRequest)
 
 		if err != nil {
 			return results, total, err
@@ -610,117 +512,39 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 	return results, total, nil
 }
 
-/* GetFollowers gets an user's followers list */
-func (db *DbNoSqlV2) GetFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+/* GetFollowing gets an user's following list */
+func (db *DbNoSqlV2) GetFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
 	var results []*mr.User
 
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// region Pipeline
-
-	matchId := bson.M{"$match": bson.M{"userId": objId, "active": true}}
-	lookupUsers := bson.M{"$lookup": bson.M{
-		"from":         "users",
-		"localField":   "userRelationId",
-		"foreignField": "_id",
-		"as":           "result"}}
-	projectResult := bson.M{"$project": bson.M{
-		"user": bson.M{"$arrayElemAt": []interface{}{"$result", 0}},
-		"_id":  0}}
-	projectUser := bson.M{"$project": bson.M{
-		"_id":       "$user._id",
-		"name":      "$user.name",
-		"lastName":  "$user.lastName",
-		"birthDate": "$user.birthDate"}}
-	matchName := bson.M{"$match": bson.M{"name": bson.M{"$regex": search, "$options": "im"}}}
-
-	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
-	skip := bson.M{"$skip": (page - 1) * limit}
-	agLimit := bson.M{"$limit": limit}
-	count := bson.M{"$count": "total"}
-	basePipeline := []bson.M{matchId, lookupUsers, projectResult, projectUser, matchName}
-	countPipeline := append(basePipeline, count)
-	aggPipeline := append(basePipeline, sort, skip, agLimit)
-
-	// endregion
-
-	dbResults, total, err := getResults[m.User](db, "relation", countPipeline, aggPipeline)
-
-	if err == nil {
-		for _, userModel := range dbResults {
-			userRequest := GetUserRequest(*userModel)
-			results = append(results, &userRequest)
-		}
-	}
-
-	return results, total, err
-}
-
-/* GetNotFollowers gets an user's not followers list */
-func (db *DbNoSqlV2) GetNotFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
-	var results []*mr.User
-
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return nil, 0, err
-	}
+	objId, _ := getObjectId(id)
 
 	// region Pipeline
 
 	matchId := bson.M{"$match": bson.M{"_id": objId}}
-	lookupRelation := bson.M{"$lookup": bson.M{
-		"from":         "relation",
-		"localField":   "_id",
-		"foreignField": "userId",
-		"as":           "r",
-		"pipeline": []interface{}{bson.M{
-			"$match": bson.M{
-				"$expr": bson.M{
-					"$eq": []interface{}{"$active", true},
-				},
-			}},
-		}},
-	}
 	lookupUsers := bson.M{"$lookup": bson.M{
-		"from": "users",
-		"as":   "u",
-		"let":  bson.M{"userId": "$r.userRelationId", "id": "$r.userId"},
-		"pipeline": []interface{}{bson.M{
-			"$match": bson.M{
-				"$expr": bson.M{
-					"$not": bson.M{"$in": []interface{}{
-						"$_id",
-						"$$userId",
-					}},
-				}},
-		}},
-	}}
-	projectArray := bson.M{"$project": bson.M{"u": "$u", "_id": 0}}
+		"from":         "users",
+		"localField":   "following",
+		"foreignField": "_id",
+		"as":           "r"}}
+	projectResult := bson.M{"$project": bson.M{
+		"u":   "$r",
+		"_id": 0}}
 	unwind := bson.M{"$unwind": bson.M{
 		"path":                       "$u",
-		"preserveNullAndEmptyArrays": false,
-	}}
+		"preserveNullAndEmptyArrays": false}}
 	projectUser := bson.M{"$project": bson.M{
 		"_id":       "$u._id",
 		"name":      "$u.name",
 		"lastName":  "$u.lastName",
-		"birthDate": "$u.birthDate",
-	}}
-	matchName := bson.M{"$match": bson.M{
-		"_id":  bson.M{"$ne": objId},
-		"name": bson.M{"$regex": search, "$options": "im"},
-	}}
+		"birthDate": "$u.birthDate"}}
+	matchName := bson.M{"$match": bson.M{"name": bson.M{"$regex": search, "$options": "im"}}}
+
 	count := bson.M{"$count": "total"}
 	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
 	skip := bson.M{"$skip": (page - 1) * limit}
 	agLimit := bson.M{"$limit": limit}
 
-	basePipeline := []bson.M{matchId, lookupRelation, lookupUsers, projectArray, unwind, projectUser, matchName}
+	basePipeline := []bson.M{matchId, lookupUsers, projectResult, unwind, projectUser, matchName}
 	countPipeline := append(basePipeline, count)
 	aggPipeline := append(basePipeline, sort, skip, agLimit)
 
@@ -738,8 +562,69 @@ func (db *DbNoSqlV2) GetNotFollowers(id string, page int64, limit int64, search 
 	return results, total, err
 }
 
-/* GetUsersTweets returns the followers' tweets */
-func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
+/* GetNotFollowing gets an user's not following list */
+func (db *DbNoSqlV2) GetNotFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+	var results []*mr.User
+
+	objId, _ := getObjectId(id)
+
+	// region Pipeline
+
+	matchId := bson.M{"$match": bson.M{"_id": objId}}
+	lookupUsers := bson.M{"$lookup": bson.M{
+		"from": "users",
+		"as":   "r",
+		"let":  bson.M{"userId": "$following"},
+		"pipeline": []interface{}{bson.M{
+			"$match": bson.M{
+				"$expr": bson.M{
+					"$not": bson.M{"$in": []interface{}{
+						"$_id",
+						"$$userId",
+					}},
+				}},
+		}},
+	}}
+	projectArray := bson.M{"$project": bson.M{"u": "$r", "_id": 0}}
+	unwind := bson.M{"$unwind": bson.M{
+		"path":                       "$u",
+		"preserveNullAndEmptyArrays": false,
+	}}
+	projectUser := bson.M{"$project": bson.M{
+		"_id":       "$u._id",
+		"name":      "$u.name",
+		"lastName":  "$u.lastName",
+		"birthDate": "$u.birthDate"}}
+	matchName := bson.M{"$match": bson.M{
+		"_id":  bson.M{"$ne": objId},
+		"name": bson.M{"$regex": search, "$options": "im"},
+	}}
+
+	count := bson.M{"$count": "total"}
+	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
+
+	basePipeline := []bson.M{matchId, lookupUsers, projectArray, unwind, projectUser, matchName}
+	countPipeline := append(basePipeline, count)
+	aggPipeline := append(basePipeline, sort, skip, agLimit)
+
+	// endregion
+
+	dbResults, total, err := getResults[m.User](db, "users", countPipeline, aggPipeline)
+
+	if err == nil {
+		for _, userModel := range dbResults {
+			userRequest := GetUserRequest(*userModel)
+			results = append(results, &userRequest)
+		}
+	}
+
+	return results, total, err
+}
+
+/* GetFollowingTweets returns the following's tweets */
+func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
 	var results interface{}
 	var total int64
 	var err error
@@ -758,18 +643,34 @@ func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTw
 
 	// region "Pipeline"
 
-	conditions = append(conditions, bson.M{"$match": bson.M{"userId": objId, "active": true}})
+	conditions = append(conditions, bson.M{"$match": bson.M{"_id": objId}})
 	conditions = append(conditions, bson.M{
 		"$lookup": bson.M{
-			"from":         "tweet",
-			"localField":   "userRelationId",
-			"foreignField": "userId",
-			"as":           "tweet",
-			"pipeline": []bson.M{{
-				"$match": bson.M{
-					"active": true}},
-			},
+			"from":         "users",
+			"localField":   "following",
+			"foreignField": "_id",
+			"as":           "r",
 		}})
+	conditions = append(conditions, bson.M{
+		"$unwind": bson.M{
+			"path":                       "$r",
+			"preserveNullAndEmptyArrays": false,
+		},
+	})
+	conditions = append(conditions, bson.M{
+		"$project": bson.M{
+			"_id":             0,
+			"userId":          "$_id",
+			"userFollowingId": "$r._id",
+			"tweet": bson.M{
+				"$filter": bson.M{
+					"input": "$r.tweets",
+					"as":    "tweet",
+					"cond":  bson.M{"$eq": []interface{}{"$$tweet.active", true}},
+				},
+			},
+		},
+	})
 	conditions = append(conditions, bson.M{
 		"$unwind": bson.M{
 			"path":                       "$tweet",
@@ -781,7 +682,7 @@ func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTw
 		conditions = append(conditions, bson.M{
 			"$project": bson.M{
 				"_id":     "$tweet._id",
-				"userId":  "$tweet.userId",
+				"userId":  "$userFollowingId",
 				"message": "$tweet.message",
 				"date":    "$tweet.date",
 			}})
@@ -803,7 +704,7 @@ func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTw
 		var dbResults []*m.Tweet
 		var reqResults []*mr.Tweet
 
-		dbResults, total, err = getResults[m.Tweet](db, "relation", conditionsCount, conditionsAgg)
+		dbResults, total, err = getResults[m.Tweet](db, "users", conditionsCount, conditionsAgg)
 
 		if err == nil {
 			for _, tweetModel := range dbResults {
@@ -817,7 +718,7 @@ func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTw
 		var dbResults []*m.UserTweet
 		var reqResults []*mr.UserTweet
 
-		dbResults, total, err = getResults[m.UserTweet](db, "relation", conditionsCount, conditionsAgg)
+		dbResults, total, err = getResults[m.UserTweet](db, "users", conditionsCount, conditionsAgg)
 
 		if err == nil {
 			for _, userTweetModel := range dbResults {
@@ -835,6 +736,94 @@ func (db *DbNoSqlV2) GetUsersTweets(id string, page int64, limit int64, isOnlyTw
 // endregion
 
 // region "Helpers"
+
+func (db *DbNoSqlV2) deleteTweetLogical(id string, userId string) error {
+	objId, err := getObjectId(id)
+
+	if err != nil {
+		return err
+	}
+
+	objUserId, _ := getObjectId(userId)
+	filter := bson.M{
+		"_id":        objUserId,
+		"tweets._id": objId,
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"tweets.$.active": false,
+		},
+	}
+
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.UpdateOne(ctx, filter, update)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DbNoSqlV2) deleteTweetFisical(id string, userId string) error {
+	objId, err := getObjectId(id)
+
+	if err != nil {
+		return err
+	}
+
+	objUserId, _ := getObjectId(userId)
+	update := bson.M{
+		"$pull": bson.M{
+			"tweets": bson.D{primitive.E{Key: "_id", Value: objId}},
+		},
+	}
+
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.UpdateByID(ctx, objUserId, update)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DbNoSqlV2) deleteRelationFisical(relation mr.Relation) error {
+	objId, _ := getObjectId(relation.UserId)
+	objUserRelationId, err := getObjectId(relation.UserRelationId)
+
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$pull": bson.M{
+			"following": objUserRelationId,
+		},
+	}
+
+	col := getCollection(db, "twitton", "users")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.UpdateByID(ctx, objId, update)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func encryptPassword(password string) (string, error) {
 	// Minimum - cost: 6

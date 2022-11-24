@@ -76,7 +76,7 @@ func GetTweets(w http.ResponseWriter, r *http.Request) {
 /* Delete deletes a tweet that belongs to an user */
 func Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(helpers.RequestQueryIdKey{}).(string)
-	err := db.DbConn.DeleteTweetLogical(id, jwt.UserId)
+	err := db.DbConn.DeleteTweet(id, jwt.UserId)
 
 	if err != nil {
 		http.Error(w, "An error occurred trying to delete the tweet: "+err.Error(), http.StatusInternalServerError)

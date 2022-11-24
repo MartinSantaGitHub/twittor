@@ -34,7 +34,7 @@ func GetUserModel(requestModel mr.User) (m.User, error) {
 		WebSite:   requestModel.WebSite,
 		Password:  requestModel.Password,
 		Tweets:    []m.Tweet{},
-		Followers: []primitive.ObjectID{},
+		Following: []primitive.ObjectID{},
 	}
 
 	return userModel, nil
@@ -59,30 +59,11 @@ func GetUserRequest(userModel m.User) mr.User {
 	return requestModel
 }
 
-/* GetTweetModel obtains the DB Tweet model */
-// func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
-// 	var tweetModel m.Tweet
-
-// 	objId, err := getObjectId(requestModel.Id)
-
-// 	if err != nil {
-// 		return tweetModel, err
-// 	}
-
-// 	tweetModel = m.Tweet{
-// 		Id:      objId,
-// 		Message: requestModel.Message,
-// 		Date:    requestModel.Date,
-// 		Active:  requestModel.Active,
-// 	}
-
-// 	return tweetModel, nil
-// }
-
 /* GetTweetRequest obtains the Request Tweet model */
 func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	requestModel := mr.Tweet{
 		Id:      tweetModel.Id.Hex(),
+		UserId:  tweetModel.UserId.Hex(),
 		Message: tweetModel.Message,
 		Date:    tweetModel.Date,
 		Active:  tweetModel.Active,
@@ -91,56 +72,11 @@ func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	return requestModel
 }
 
-/* GetRelationModel obtains the DB Relation model */
-// func GetRelationModel(requestModel mr.Relation) (m.Relation, error) {
-// 	var relationModel m.Relation
-
-// 	objId, err := getObjectId(requestModel.Id)
-
-// 	if err != nil {
-// 		return relationModel, err
-// 	}
-
-// 	objUserId, err := getObjectId(requestModel.UserId)
-
-// 	if err != nil {
-// 		return relationModel, err
-// 	}
-
-// 	objUserRelationId, err := getObjectId(requestModel.UserRelationId)
-
-// 	if err != nil {
-// 		return relationModel, err
-// 	}
-
-// 	relationModel = m.Relation{
-// 		Id:             objId,
-// 		UserId:         objUserId,
-// 		UserRelationId: objUserRelationId,
-// 		Active:         requestModel.Active,
-// 	}
-
-// 	return relationModel, nil
-// }
-
-/* GetRelationRequest obtains the Request Relation model */
-// func GetRelationRequest(relationModel m.Relation) mr.Relation {
-// 	requestModel := mr.Relation{
-// 		Id:             relationModel.Id.Hex(),
-// 		UserId:         relationModel.UserId.Hex(),
-// 		UserRelationId: relationModel.UserRelationId.Hex(),
-// 		Active:         relationModel.Active,
-// 	}
-
-// 	return requestModel
-// }
-
 /* GetUserTweetRequest obtains the Request UserTweet model */
 func GetUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {
 	requestModel := mr.UserTweet{
-		Id:             userTweetModel.Id.Hex(),
 		UserId:         userTweetModel.UserId.Hex(),
-		UserRelationId: userTweetModel.UserRelationId.Hex(),
+		UserRelationId: userTweetModel.UserFollowingId.Hex(),
 	}
 
 	requestModel.Tweet.Id = userTweetModel.Tweet.Id.Hex()

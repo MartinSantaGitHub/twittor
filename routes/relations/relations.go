@@ -40,9 +40,9 @@ func GetUsers(router *mux.Router) {
 		middlewares.ValidatePageLimit)).Methods("GET")
 }
 
-/* GetUsersTweets returns the followers' tweets */
-func GetUsersTweets(router *mux.Router) {
-	router.HandleFunc("/relation/tweets", helpers.MultipleMiddleware(relations.GetUsersTweets,
+/* GetFollowingTweets returns the following's tweets */
+func GetFollowingTweets(router *mux.Router) {
+	router.HandleFunc("/relation/tweets", helpers.MultipleMiddleware(relations.GetFollowingTweets,
 		middlewares.CheckDB,
 		middlewares.ValidateJWT,
 		middlewares.ValidatePageLimit)).Methods("GET")

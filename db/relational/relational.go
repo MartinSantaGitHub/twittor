@@ -77,16 +77,13 @@ func (db *DbSql) TryLogin(email string, password string) (mr.User, bool) {
 
 // region "Tweets"
 
-/* Delete deletes a tweet in the DB */
-func (db *DbSql) DeleteTweetFisical(id string, userId string) error {
-	log.Fatal("Method not implemented")
+/* DeleteTweet deletes a tweet in the DB */
+func (db *DbSql) DeleteTweet(id string, userId string) error {
+	err := db.deleteTweetLogical(id, userId)
 
-	return nil
-}
-
-/* DeleteLogical inactivates a tweet in the DB */
-func (db *DbSql) DeleteTweetLogical(id string, userId string) error {
-	log.Fatal("Method not implemented")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -113,7 +110,7 @@ func (db *DbSql) InsertTweet(tweet mr.Tweet) (string, error) {
 // region "Relations"
 
 /* IsRelation verifies if exist a relation in the DB */
-func (db *DbSql) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
+func (db *DbSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	var result mr.Relation
 
 	log.Fatal("Method not implemented")
@@ -130,22 +127,19 @@ func (db *DbSql) InsertRelation(relation mr.Relation) error {
 	return err
 }
 
-/* Delete deletes a relation in the DB */
-func (db *DbSql) DeleteRelationFisical(relation mr.Relation) error {
-	log.Fatal("Method not implemented")
+/* DeleteRelation deletes a relation in the DB */
+func (db *DbSql) DeleteRelation(relation mr.Relation) error {
+	err := db.deleteRelationLogical(relation)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-/* DeleteLogical inactivates a relation in the DB */
-func (db *DbSql) DeleteRelationLogical(relation mr.Relation) error {
-	log.Fatal("Method not implemented")
-
-	return nil
-}
-
-/* GetFollowers gets an user's followers list */
-func (db *DbSql) GetFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+/* GetUsers gets an user's following or not following list */
+func (db *DbSql) GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error) {
 	var results []*mr.User
 
 	log.Fatal("Method not implemented")
@@ -153,8 +147,8 @@ func (db *DbSql) GetFollowers(id string, page int64, limit int64, search string)
 	return results, 0, nil
 }
 
-/* GetNotFollowers gets an user's not followers list */
-func (db *DbSql) GetNotFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+/* GetFollowing gets an user's following list */
+func (db *DbSql) GetFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
 	var results []*mr.User
 
 	log.Fatal("Method not implemented")
@@ -162,8 +156,17 @@ func (db *DbSql) GetNotFollowers(id string, page int64, limit int64, search stri
 	return results, 0, nil
 }
 
-/* GetUsersTweets returns the followers' tweets */
-func (db *DbSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
+/* GetNotFollowing gets an user's not following list */
+func (db *DbSql) GetNotFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+	var results []*mr.User
+
+	log.Fatal("Method not implemented")
+
+	return results, 0, nil
+}
+
+/* GetFollowingTweets returns the following's tweets */
+func (db *DbSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
 	var results []interface{}
 	var total int64
 	var err error
@@ -180,5 +183,33 @@ func (db *DbSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets
 
 // 	return results, 0, nil
 // }
+
+// endregion
+
+// region "Helpers"
+
+func (db *DbSql) deleteTweetFisical(id string, userId string) error {
+	log.Fatal("Method not implemented")
+
+	return nil
+}
+
+func (db *DbSql) deleteTweetLogical(id string, userId string) error {
+	log.Fatal("Method not implemented")
+
+	return nil
+}
+
+func (db *DbSql) deleteRelationFisical(relation mr.Relation) error {
+	log.Fatal("Method not implemented")
+
+	return nil
+}
+
+func (db *DbSql) deleteRelationLogical(relation mr.Relation) error {
+	log.Fatal("Method not implemented")
+
+	return nil
+}
 
 // endregion

@@ -23,20 +23,18 @@ type DbAdapter interface {
 	TryLogin(email string, password string) (mr.User, bool)
 
 	// Tweets
-	DeleteTweetFisical(id string, userId string) error
-	DeleteTweetLogical(id string, userId string) error
+	DeleteTweet(id string, userId string) error
 	GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int64, error)
 	InsertTweet(tweet mr.Tweet) (string, error)
 
 	// Relations
-	GetRelation(relation mr.Relation) (bool, mr.Relation, error)
+	IsRelation(relation mr.Relation) (bool, mr.Relation, error)
 	InsertRelation(relation mr.Relation) error
-	DeleteRelationFisical(relation mr.Relation) error
-	DeleteRelationLogical(relation mr.Relation) error
-	GetFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
-	GetNotFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
-	GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error)
-	//GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error)
+	DeleteRelation(relation mr.Relation) error
+	GetFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
+	GetNotFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
+	GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error)
+	GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error)
 }
 
 /* DbConn is the connection to the database */

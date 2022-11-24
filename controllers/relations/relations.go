@@ -63,7 +63,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.DbConn.DeleteRelationLogical(relation)
+	err = db.DbConn.DeleteRelation(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to delete a relation: %s", err.Error()), http.StatusInternalServerError)
@@ -87,7 +87,7 @@ func IsRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isFound, relationDb, err := db.DbConn.GetRelation(relation)
+	isFound, relationDb, err := db.DbConn.IsRelation(relation)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("An error has occurred trying to obtain a relation: %s", err.Error()), http.StatusInternalServerError)
@@ -121,16 +121,16 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	switch searchType {
 
 	case "new":
-		results, total, err = db.DbConn.GetNotFollowers(jwt.UserId, page, limit, search)
+		results, total, err = db.DbConn.GetNotFollowing(jwt.UserId, page, limit, search)
 	case "follow":
-		results, total, err = db.DbConn.GetFollowers(jwt.UserId, page, limit, search)
+		results, total, err = db.DbConn.GetFollowing(jwt.UserId, page, limit, search)
 	default:
 		http.Error(w, "Invalid type param value. It has to be \"follow\" or \"new\"", http.StatusBadRequest)
 
 		return
 	}
 
-	//results, total, err = db.DbConn.GetUsers(jwt.UserId, page, limit, search, searchType)
+	// results, total, err = db.DbConn.GetUsers(jwt.UserId, page, limit, search, searchType)
 
 	if err != nil {
 		http.Error(w, "Error getting the users: "+err.Error(), http.StatusInternalServerError)
@@ -149,8 +149,8 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-/* GetUsersTweets returns the followers' tweets */
-func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
+/* GetFollowingTweets returns the following's tweets */
+func GetFollowingTweets(w http.ResponseWriter, r *http.Request) {
 	var response interface{}
 
 	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
@@ -169,7 +169,7 @@ func GetUsersTweets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, total, err := db.DbConn.GetUsersTweets(jwt.UserId, page, limit, isOnlyTweets)
+	results, total, err := db.DbConn.GetFollowingTweets(jwt.UserId, page, limit, isOnlyTweets)
 
 	if err != nil {
 		http.Error(w, "Error getting the tweets: "+err.Error(), http.StatusInternalServerError)

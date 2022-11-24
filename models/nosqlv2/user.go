@@ -20,5 +20,5 @@ type User struct {
 	Location  string               `bson:"location"`
 	WebSite   string               `bson:"webSite"`
 	Tweets    []Tweet              `bson:"tweets"`
-	Followers []primitive.ObjectID `bson:"followers"`
+	Following []primitive.ObjectID `bson:"following"`
 }

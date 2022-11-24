@@ -233,99 +233,15 @@ func (db *DbNoSql) TryLogin(email string, password string) (mr.User, bool) {
 
 // region "Tweets"
 
-/* Delete deletes a tweet in the DB */
-func (db *DbNoSql) DeleteTweetFisical(id string, userId string) error {
-	var tweetModel m.Tweet
-
-	objId, err := getObjectId(id)
+/* DeleteTweet deletes a tweet in the DB */
+func (db *DbNoSql) DeleteTweet(id string, userId string) error {
+	err := db.deleteTweetLogical(id, userId)
 
 	if err != nil {
 		return err
 	}
 
-	col := getCollection(db, "twittor", "tweet")
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancelFind()
-
-	condition := bson.M{
-		"_id": objId,
-	}
-
-	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
-
-	if err != nil {
-		return err
-	}
-
-	objUserId, _ := getObjectId(userId)
-
-	if objUserId != tweetModel.UserId {
-		return errors.New("invalid operation - cannot delete a non-owner tweet")
-	}
-
-	condition = bson.M{
-		"_id":    objId,
-		"userId": objUserId,
-	}
-
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancel()
-
-	_, err = col.DeleteOne(ctx, condition)
-
-	return err
-}
-
-/* DeleteLogical inactivates a tweet in the DB */
-func (db *DbNoSql) DeleteTweetLogical(id string, userId string) error {
-	var tweetModel m.Tweet
-
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return err
-	}
-
-	col := getCollection(db, "twittor", "tweet")
-	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancelFind()
-
-	condition := bson.M{
-		"_id": objId,
-	}
-
-	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
-
-	if err != nil {
-		return err
-	}
-
-	objUserId, _ := getObjectId(userId)
-
-	if objUserId != tweetModel.UserId {
-		return errors.New("invalid operation - cannot delete a non-owner tweet")
-	}
-
-	condition = bson.M{
-		"_id":    objId,
-		"userId": objUserId,
-	}
-	updateString := bson.M{
-		"$set": bson.M{"active": false},
-	}
-
-	// Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
-
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancel()
-
-	_, err = col.UpdateOne(ctx, condition, updateString)
-
-	return err
+	return nil
 }
 
 /* Get gets an user's tweets from the DB */
@@ -418,8 +334,8 @@ func (db *DbNoSql) InsertTweet(tweet mr.Tweet) (string, error) {
 
 // region "Relations"
 
-/* GetRelation obtains a relation from the DB if exist */
-func (db *DbNoSql) GetRelation(relation mr.Relation) (bool, mr.Relation, error) {
+/* IsRelation obtains a relation from the DB if exist */
+func (db *DbNoSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	var result mr.Relation
 
 	relationModel, err := GetRelationModel(relation)
@@ -452,7 +368,7 @@ func (db *DbNoSql) GetRelation(relation mr.Relation) (bool, mr.Relation, error) 
 /* InsertRelation creates a relation into the DB */
 func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	col := getCollection(db, "twittor", "relation")
-	isFound, relationDb, err := db.GetRelation(relation)
+	isFound, relationDb, err := db.IsRelation(relation)
 
 	if err != nil {
 		return err
@@ -497,44 +413,15 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	return err
 }
 
-/* Delete deletes a relation in the DB */
-func (db *DbNoSql) DeleteRelationFisical(relation mr.Relation) error {
-	relationModel, err := GetRelationModel(relation)
+/* DeleteRelation deletes a relation in the DB */
+func (db *DbNoSql) DeleteRelation(relation mr.Relation) error {
+	err := db.deleteRelationLogical(relation)
 
 	if err != nil {
 		return err
 	}
 
-	col := getCollection(db, "twittor", "relation")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancel()
-
-	_, err = col.DeleteOne(ctx, relationModel)
-
-	return err
-}
-
-/* DeleteLogical inactivates a relation in the DB */
-func (db *DbNoSql) DeleteRelationLogical(relation mr.Relation) error {
-	relationModel, err := GetRelationModel(relation)
-
-	if err != nil {
-		return err
-	}
-
-	col := getCollection(db, "twittor", "relation")
-	updateString := map[string]map[string]bool{"$set": {"active": false}}
-
-	// Also bson.M{"$set": bson.M{"active": false},} in the updateString
-
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancel()
-
-	_, err = col.UpdateOne(ctx, relationModel, updateString)
-
-	return err
+	return nil
 }
 
 /* GetUsers gets a list of users */
@@ -590,7 +477,7 @@ func (db *DbNoSql) GetUsers(id string, page int64, limit int64, search string, s
 			Active:         true,
 		}
 
-		isFound, relationDb, err := db.GetRelation(relationRequest)
+		isFound, relationDb, err := db.IsRelation(relationRequest)
 
 		if err != nil {
 			return results, total, err
@@ -633,15 +520,11 @@ func (db *DbNoSql) GetUsers(id string, page int64, limit int64, search string, s
 	return results, total, nil
 }
 
-/* GetFollowers gets an user's followers list */
-func (db *DbNoSql) GetFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+/* GetFollowing gets an user's following list */
+func (db *DbNoSql) GetFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
 	var results []*mr.User
 
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return nil, 0, err
-	}
+	objId, _ := getObjectId(id)
 
 	// region Pipeline
 
@@ -683,15 +566,11 @@ func (db *DbNoSql) GetFollowers(id string, page int64, limit int64, search strin
 	return results, total, err
 }
 
-/* GetNotFollowers gets an user's not followers list */
-func (db *DbNoSql) GetNotFollowers(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
+/* GetNotFollowing gets an user's not following list */
+func (db *DbNoSql) GetNotFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
 	var results []*mr.User
 
-	objId, err := getObjectId(id)
-
-	if err != nil {
-		return nil, 0, err
-	}
+	objId, _ := getObjectId(id)
 
 	// region Pipeline
 
@@ -712,14 +591,15 @@ func (db *DbNoSql) GetNotFollowers(id string, page int64, limit int64, search st
 	lookupUsers := bson.M{"$lookup": bson.M{
 		"from": "users",
 		"as":   "u",
-		"let":  bson.M{"userId": "$r.userRelationId", "id": "$r.userId"},
+		"let":  bson.M{"userId": "$r.userRelationId"},
 		"pipeline": []interface{}{bson.M{
 			"$match": bson.M{
 				"$expr": bson.M{
-					"$not": bson.M{"$in": []interface{}{
-						"$_id",
-						"$$userId",
-					}},
+					"$not": bson.M{
+						"$in": []interface{}{
+							"$_id",
+							"$$userId",
+						}},
 				}},
 		}},
 	}}
@@ -761,8 +641,8 @@ func (db *DbNoSql) GetNotFollowers(id string, page int64, limit int64, search st
 	return results, total, err
 }
 
-/* GetUsersTweets returns the followers' tweets */
-func (db *DbNoSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
+/* GetFollowingTweets returns the following's tweets */
+func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
 	var results interface{}
 	var total int64
 	var err error
@@ -858,6 +738,145 @@ func (db *DbNoSql) GetUsersTweets(id string, page int64, limit int64, isOnlyTwee
 // endregion
 
 // region "Helpers"
+
+func (db *DbNoSql) deleteRelationFisical(relation mr.Relation) error {
+	relationModel, err := GetRelationModel(relation)
+
+	if err != nil {
+		return err
+	}
+
+	col := getCollection(db, "twittor", "relation")
+	filter := bson.M{
+		"userId":         relationModel.UserId,
+		"userRelationId": relationModel.UserRelationId,
+	}
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.DeleteOne(ctx, filter)
+
+	return err
+}
+
+func (db *DbNoSql) deleteRelationLogical(relation mr.Relation) error {
+	relationModel, err := GetRelationModel(relation)
+
+	if err != nil {
+		return err
+	}
+
+	col := getCollection(db, "twittor", "relation")
+	filter := bson.M{
+		"userId":         relationModel.UserId,
+		"userRelationId": relationModel.UserRelationId,
+	}
+	updateString := map[string]map[string]bool{"$set": {"active": false}}
+
+	// Also bson.M{"$set": bson.M{"active": false},} in the updateString
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.UpdateOne(ctx, filter, updateString)
+
+	return err
+}
+
+func (db *DbNoSql) deleteTweetFisical(id string, userId string) error {
+	var tweetModel m.Tweet
+
+	objId, err := getObjectId(id)
+
+	if err != nil {
+		return err
+	}
+
+	col := getCollection(db, "twittor", "tweet")
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	condition := bson.M{
+		"_id": objId,
+	}
+
+	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+
+	if err != nil {
+		return err
+	}
+
+	objUserId, _ := getObjectId(userId)
+
+	if objUserId != tweetModel.UserId {
+		return errors.New("invalid operation - cannot delete a non-owner tweet")
+	}
+
+	condition = bson.M{
+		"_id":    objId,
+		"userId": objUserId,
+	}
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.DeleteOne(ctx, condition)
+
+	return err
+}
+
+func (db *DbNoSql) deleteTweetLogical(id string, userId string) error {
+	var tweetModel m.Tweet
+
+	objId, err := getObjectId(id)
+
+	if err != nil {
+		return err
+	}
+
+	col := getCollection(db, "twittor", "tweet")
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	condition := bson.M{
+		"_id": objId,
+	}
+
+	err = col.FindOne(ctxFind, condition).Decode(&tweetModel)
+
+	if err != nil {
+		return err
+	}
+
+	objUserId, _ := getObjectId(userId)
+
+	if objUserId != tweetModel.UserId {
+		return errors.New("invalid operation - cannot delete a non-owner tweet")
+	}
+
+	condition = bson.M{
+		"_id":    objId,
+		"userId": objUserId,
+	}
+	updateString := bson.M{
+		"$set": bson.M{"active": false},
+	}
+
+	// Also map[string]map[string]bool{"$set": {"active": false}} in the updateString
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	_, err = col.UpdateOne(ctx, condition, updateString)
+
+	return err
+}
 
 func encryptPassword(password string) (string, error) {
 	// Minimum - cost: 6
