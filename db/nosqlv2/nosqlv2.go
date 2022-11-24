@@ -328,7 +328,7 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 /* IsRelation obtains a relation from the DB if exist */
 func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	objId, _ := getObjectId(relation.UserId)
-	objUserRelationId, err := getObjectId(relation.UserRelationId)
+	objUserFollowingId, err := getObjectId(relation.UserRelationId)
 
 	if err != nil {
 		return false, relation, err
@@ -343,7 +343,7 @@ func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error)
 		"_id": objId,
 		"following": bson.M{
 			"$in": []interface{}{
-				objUserRelationId,
+				objUserFollowingId,
 			}},
 	}
 
@@ -383,11 +383,11 @@ func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 	}
 
 	objId, _ := getObjectId(relation.UserId)
-	objUserRelationId, _ := getObjectId(relation.UserRelationId)
+	objUserFollowingId, _ := getObjectId(relation.UserRelationId)
 
 	update := bson.M{
 		"$push": bson.M{
-			"following": objUserRelationId,
+			"following": objUserFollowingId,
 		},
 	}
 
@@ -799,7 +799,7 @@ func (db *DbNoSqlV2) deleteTweetFisical(id string, userId string) error {
 
 func (db *DbNoSqlV2) deleteRelationFisical(relation mr.Relation) error {
 	objId, _ := getObjectId(relation.UserId)
-	objUserRelationId, err := getObjectId(relation.UserRelationId)
+	objUserFollowingId, err := getObjectId(relation.UserRelationId)
 
 	if err != nil {
 		return err
@@ -807,7 +807,7 @@ func (db *DbNoSqlV2) deleteRelationFisical(relation mr.Relation) error {
 
 	update := bson.M{
 		"$pull": bson.M{
-			"following": objUserRelationId,
+			"following": objUserFollowingId,
 		},
 	}
 
