@@ -547,20 +547,22 @@ func (db *DbNoSql) GetFollowing(id string, page int64, limit int64, search strin
 	projectResult := bson.M{"$project": bson.M{
 		"user": bson.M{"$arrayElemAt": []interface{}{"$result", 0}},
 		"_id":  0}}
+	matchName := bson.M{"$match": bson.M{"user.name": bson.M{"$regex": search, "$options": "im"}}}
+
+	count := bson.M{"$count": "total"}
+
+	sort := bson.M{"$sort": bson.M{"user.birthDate": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
 	projectUser := bson.M{"$project": bson.M{
 		"_id":       "$user._id",
 		"name":      "$user.name",
 		"lastName":  "$user.lastName",
 		"birthDate": "$user.birthDate"}}
-	matchName := bson.M{"$match": bson.M{"name": bson.M{"$regex": search, "$options": "im"}}}
 
-	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
-	skip := bson.M{"$skip": (page - 1) * limit}
-	agLimit := bson.M{"$limit": limit}
-	count := bson.M{"$count": "total"}
-	basePipeline := []bson.M{matchId, lookupUsers, projectResult, projectUser, matchName}
+	basePipeline := []bson.M{matchId, lookupUsers, projectResult, matchName}
 	countPipeline := append(basePipeline, count)
-	aggPipeline := append(basePipeline, sort, skip, agLimit)
+	aggPipeline := append(basePipeline, sort, skip, agLimit, projectUser)
 
 	// endregion
 
@@ -618,24 +620,26 @@ func (db *DbNoSql) GetNotFollowing(id string, page int64, limit int64, search st
 		"path":                       "$u",
 		"preserveNullAndEmptyArrays": false,
 	}}
+	matchName := bson.M{"$match": bson.M{
+		"u._id":  bson.M{"$ne": objId},
+		"u.name": bson.M{"$regex": search, "$options": "im"},
+	}}
+
+	count := bson.M{"$count": "total"}
+
+	sort := bson.M{"$sort": bson.M{"u.birthDate": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
 	projectUser := bson.M{"$project": bson.M{
 		"_id":       "$u._id",
 		"name":      "$u.name",
 		"lastName":  "$u.lastName",
 		"birthDate": "$u.birthDate",
 	}}
-	matchName := bson.M{"$match": bson.M{
-		"_id":  bson.M{"$ne": objId},
-		"name": bson.M{"$regex": search, "$options": "im"},
-	}}
-	count := bson.M{"$count": "total"}
-	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
-	skip := bson.M{"$skip": (page - 1) * limit}
-	agLimit := bson.M{"$limit": limit}
 
-	basePipeline := []bson.M{matchId, lookupRelation, lookupUsers, projectArray, unwind, projectUser, matchName}
+	basePipeline := []bson.M{matchId, lookupRelation, lookupUsers, projectArray, unwind, matchName}
 	countPipeline := append(basePipeline, count)
-	aggPipeline := append(basePipeline, sort, skip, agLimit)
+	aggPipeline := append(basePipeline, sort, skip, agLimit, projectUser)
 
 	// endregion
 
@@ -669,8 +673,6 @@ func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnly
 
 	skip := (page - 1) * limit
 
-	// region "Pipeline"
-
 	conditions = append(conditions, bson.M{"$match": bson.M{"userId": objId, "active": true}})
 	conditions = append(conditions, bson.M{
 		"$lookup": bson.M{
@@ -690,29 +692,23 @@ func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnly
 		},
 	})
 
+	conditionsCount = append(conditionsCount, conditions...)
+	conditionsCount = append(conditionsCount, bson.M{"$count": "total"})
+
+	conditionsAgg = append(conditionsAgg, conditions...)
+	conditionsAgg = append(conditionsAgg, bson.M{"$sort": bson.M{"tweet.date": -1}})
+	conditionsAgg = append(conditionsAgg, bson.M{"$skip": skip})
+	conditionsAgg = append(conditionsAgg, bson.M{"$limit": limit})
+
 	if isOnlyTweets {
-		conditions = append(conditions, bson.M{
+		conditionsAgg = append(conditionsAgg, bson.M{
 			"$project": bson.M{
 				"_id":     "$tweet._id",
 				"userId":  "$tweet.userId",
 				"message": "$tweet.message",
 				"date":    "$tweet.date",
 			}})
-		conditions = append(conditions, bson.M{"$sort": bson.M{"date": -1}})
-	} else {
-		conditions = append(conditions, bson.M{"$sort": bson.M{"tweet.date": -1}})
-	}
 
-	conditionsCount = append(conditionsCount, conditions...)
-	conditionsCount = append(conditionsCount, bson.M{"$count": "total"})
-
-	conditionsAgg = append(conditionsAgg, conditions...)
-	conditionsAgg = append(conditionsAgg, bson.M{"$skip": skip})
-	conditionsAgg = append(conditionsAgg, bson.M{"$limit": limit})
-
-	// endregion
-
-	if isOnlyTweets {
 		var dbResults []*m.Tweet
 		var reqResults []*mr.Tweet
 

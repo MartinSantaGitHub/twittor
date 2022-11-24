@@ -264,18 +264,21 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 		"path":                       "$t",
 		"preserveNullAndEmptyArrays": false}}
 	filterTweets := bson.M{"$match": bson.M{"t.active": true}}
+
+	count := bson.M{"$count": "total"}
+
+	sort := bson.M{"$sort": bson.M{"t.date": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
 	projectResult := bson.M{"$project": bson.M{
 		"_id":     "$t._id",
 		"message": "$t.message",
 		"date":    "$t.date",
 		"active":  "$t.active"}}
-	count := bson.M{"$count": "total"}
-	sort := bson.M{"$sort": bson.M{"date": -1}}
-	skip := bson.M{"$skip": (page - 1) * limit}
-	agLimit := bson.M{"$limit": limit}
-	basePipeline := []bson.M{matchId, projectTweets, unwindTweets, filterTweets, projectResult}
+
+	basePipeline := []bson.M{matchId, projectTweets, unwindTweets, filterTweets}
 	countPipeline := append(basePipeline, count)
-	aggPipeline := append(basePipeline, sort, skip, agLimit)
+	aggPipeline := append(basePipeline, sort, skip, agLimit, projectResult)
 
 	// endregion
 
@@ -522,21 +525,22 @@ func (db *DbNoSqlV2) GetFollowing(id string, page int64, limit int64, search str
 	unwind := bson.M{"$unwind": bson.M{
 		"path":                       "$u",
 		"preserveNullAndEmptyArrays": false}}
+	matchName := bson.M{"$match": bson.M{"u.name": bson.M{"$regex": search, "$options": "im"}}}
+
+	count := bson.M{"$count": "total"}
+
+	sort := bson.M{"$sort": bson.M{"u.birthDate": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
 	projectUser := bson.M{"$project": bson.M{
 		"_id":       "$u._id",
 		"name":      "$u.name",
 		"lastName":  "$u.lastName",
 		"birthDate": "$u.birthDate"}}
-	matchName := bson.M{"$match": bson.M{"name": bson.M{"$regex": search, "$options": "im"}}}
 
-	count := bson.M{"$count": "total"}
-	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
-	skip := bson.M{"$skip": (page - 1) * limit}
-	agLimit := bson.M{"$limit": limit}
-
-	basePipeline := []bson.M{matchId, lookupUsers, projectResult, unwind, projectUser, matchName}
+	basePipeline := []bson.M{matchId, lookupUsers, projectResult, unwind, matchName}
 	countPipeline := append(basePipeline, count)
-	aggPipeline := append(basePipeline, sort, skip, agLimit)
+	aggPipeline := append(basePipeline, sort, skip, agLimit, projectUser)
 
 	// endregion
 
@@ -580,24 +584,25 @@ func (db *DbNoSqlV2) GetNotFollowing(id string, page int64, limit int64, search 
 		"path":                       "$u",
 		"preserveNullAndEmptyArrays": false,
 	}}
+	matchName := bson.M{"$match": bson.M{
+		"u._id":  bson.M{"$ne": objId},
+		"u.name": bson.M{"$regex": search, "$options": "im"},
+	}}
+
+	count := bson.M{"$count": "total"}
+
+	sort := bson.M{"$sort": bson.M{"u.birthDate": -1}}
+	skip := bson.M{"$skip": (page - 1) * limit}
+	agLimit := bson.M{"$limit": limit}
 	projectUser := bson.M{"$project": bson.M{
 		"_id":       "$u._id",
 		"name":      "$u.name",
 		"lastName":  "$u.lastName",
 		"birthDate": "$u.birthDate"}}
-	matchName := bson.M{"$match": bson.M{
-		"_id":  bson.M{"$ne": objId},
-		"name": bson.M{"$regex": search, "$options": "im"},
-	}}
 
-	count := bson.M{"$count": "total"}
-	sort := bson.M{"$sort": bson.M{"birthDate": -1}}
-	skip := bson.M{"$skip": (page - 1) * limit}
-	agLimit := bson.M{"$limit": limit}
-
-	basePipeline := []bson.M{matchId, lookupUsers, projectArray, unwind, projectUser, matchName}
+	basePipeline := []bson.M{matchId, lookupUsers, projectArray, unwind, matchName}
 	countPipeline := append(basePipeline, count)
-	aggPipeline := append(basePipeline, sort, skip, agLimit)
+	aggPipeline := append(basePipeline, sort, skip, agLimit, projectUser)
 
 	// endregion
 
@@ -630,8 +635,6 @@ func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOn
 	conditionsAgg := make([]bson.M, 0)
 
 	skip := (page - 1) * limit
-
-	// region "Pipeline"
 
 	conditions = append(conditions, bson.M{"$match": bson.M{"_id": objId}})
 	conditions = append(conditions, bson.M{
@@ -668,29 +671,23 @@ func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOn
 		},
 	})
 
+	conditionsCount = append(conditionsCount, conditions...)
+	conditionsCount = append(conditionsCount, bson.M{"$count": "total"})
+
+	conditionsAgg = append(conditionsAgg, conditions...)
+	conditionsAgg = append(conditionsAgg, bson.M{"$sort": bson.M{"tweet.date": -1}})
+	conditionsAgg = append(conditionsAgg, bson.M{"$skip": skip})
+	conditionsAgg = append(conditionsAgg, bson.M{"$limit": limit})
+
 	if isOnlyTweets {
-		conditions = append(conditions, bson.M{
+		conditionsAgg = append(conditionsAgg, bson.M{
 			"$project": bson.M{
 				"_id":     "$tweet._id",
 				"userId":  "$userFollowingId",
 				"message": "$tweet.message",
 				"date":    "$tweet.date",
 			}})
-		conditions = append(conditions, bson.M{"$sort": bson.M{"date": -1}})
-	} else {
-		conditions = append(conditions, bson.M{"$sort": bson.M{"tweet.date": -1}})
-	}
 
-	conditionsCount = append(conditionsCount, conditions...)
-	conditionsCount = append(conditionsCount, bson.M{"$count": "total"})
-
-	conditionsAgg = append(conditionsAgg, conditions...)
-	conditionsAgg = append(conditionsAgg, bson.M{"$skip": skip})
-	conditionsAgg = append(conditionsAgg, bson.M{"$limit": limit})
-
-	// endregion
-
-	if isOnlyTweets {
 		var dbResults []*m.Tweet
 		var reqResults []*mr.Tweet
 
