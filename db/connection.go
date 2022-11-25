@@ -33,7 +33,7 @@ type DbAdapter interface {
 	DeleteRelation(relation mr.Relation) error
 	GetFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
 	GetNotFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error)
-	GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error)
+	GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (any, int64, error)
 	GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error)
 }
 

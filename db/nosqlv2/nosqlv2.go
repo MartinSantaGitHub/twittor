@@ -155,7 +155,7 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 	}
 
 	col := getCollection(db, "twitton", "users")
-	registry := make(map[string]interface{})
+	registry := make(map[string]any)
 
 	if len(user.Name) > 0 {
 		registry["name"] = user.Name
@@ -345,7 +345,7 @@ func (db *DbNoSqlV2) IsRelation(relation mr.Relation) (bool, mr.Relation, error)
 	filter := bson.M{
 		"_id": objId,
 		"following": bson.M{
-			"$in": []interface{}{
+			"$in": [1]primitive.ObjectID{
 				objUserFollowingId,
 			}},
 	}
@@ -569,10 +569,10 @@ func (db *DbNoSqlV2) GetNotFollowing(id string, page int64, limit int64, search 
 		"from": "users",
 		"as":   "r",
 		"let":  bson.M{"userId": "$following"},
-		"pipeline": []interface{}{bson.M{
+		"pipeline": [1]bson.M{{
 			"$match": bson.M{
 				"$expr": bson.M{
-					"$not": bson.M{"$in": []interface{}{
+					"$not": bson.M{"$in": [2]string{
 						"$_id",
 						"$$userId",
 					}},
@@ -619,8 +619,8 @@ func (db *DbNoSqlV2) GetNotFollowing(id string, page int64, limit int64, search 
 }
 
 /* GetFollowingTweets returns the following's tweets */
-func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
-	var results interface{}
+func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (any, int64, error) {
+	var results any
 	var total int64
 	var err error
 
@@ -659,7 +659,7 @@ func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOn
 				"$filter": bson.M{
 					"input": "$r.tweets",
 					"as":    "tweet",
-					"cond":  bson.M{"$eq": []interface{}{"$$tweet.active", true}},
+					"cond":  bson.M{"$eq": [2]any{"$$tweet.active", true}},
 				},
 			},
 		},

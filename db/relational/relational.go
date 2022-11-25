@@ -6,7 +6,7 @@ import (
 )
 
 type DbSql struct {
-	Connection interface{}
+	Connection any
 }
 
 // region "Connection"
@@ -166,8 +166,8 @@ func (db *DbSql) GetNotFollowing(id string, page int64, limit int64, search stri
 }
 
 /* GetFollowingTweets returns the following's tweets */
-func (db *DbSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
-	var results []interface{}
+func (db *DbSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (any, int64, error) {
+	var results any
 	var total int64
 	var err error
 

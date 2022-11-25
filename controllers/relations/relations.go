@@ -151,7 +151,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 /* GetFollowingTweets returns the following's tweets */
 func GetFollowingTweets(w http.ResponseWriter, r *http.Request) {
-	var response interface{}
+	var response any
 
 	page := r.Context().Value(helpers.RequestPageKey{}).(int64)
 	limit := r.Context().Value(helpers.RequestLimitKey{}).(int64)

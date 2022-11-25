@@ -55,7 +55,7 @@ func ProcessJWT(token string) (*mr.Claim, error) {
 
 	token = strings.TrimSpace(splitToken[1])
 
-	tkn, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
+	tkn, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (any, error) {
 		return myKey, nil
 	})
 

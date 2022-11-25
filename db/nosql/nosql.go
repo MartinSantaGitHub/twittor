@@ -155,7 +155,7 @@ func (db *DbNoSql) ModifyRegistry(id string, user mr.User) error {
 	}
 
 	col := getCollection(db, "twittor", "users")
-	registry := make(map[string]interface{})
+	registry := make(map[string]any)
 
 	if len(user.Name) > 0 {
 		registry["name"] = user.Name
@@ -545,7 +545,7 @@ func (db *DbNoSql) GetFollowing(id string, page int64, limit int64, search strin
 		"foreignField": "_id",
 		"as":           "result"}}
 	projectResult := bson.M{"$project": bson.M{
-		"user": bson.M{"$arrayElemAt": []interface{}{"$result", 0}},
+		"user": bson.M{"$arrayElemAt": [2]any{"$result", 0}},
 		"_id":  0}}
 	matchName := bson.M{"$match": bson.M{"user.name": bson.M{"$regex": search, "$options": "im"}}}
 
@@ -592,10 +592,10 @@ func (db *DbNoSql) GetNotFollowing(id string, page int64, limit int64, search st
 		"localField":   "_id",
 		"foreignField": "userId",
 		"as":           "r",
-		"pipeline": []interface{}{bson.M{
+		"pipeline": [1]bson.M{{
 			"$match": bson.M{
 				"$expr": bson.M{
-					"$eq": []interface{}{"$active", true},
+					"$eq": [2]any{"$active", true},
 				},
 			}},
 		}},
@@ -604,11 +604,11 @@ func (db *DbNoSql) GetNotFollowing(id string, page int64, limit int64, search st
 		"from": "users",
 		"as":   "u",
 		"let":  bson.M{"userId": "$r.userRelationId"},
-		"pipeline": []interface{}{bson.M{
+		"pipeline": [1]bson.M{{
 			"$match": bson.M{
 				"$expr": bson.M{
 					"$not": bson.M{
-						"$in": []interface{}{
+						"$in": [2]string{
 							"$_id",
 							"$$userId",
 						}},
@@ -656,8 +656,8 @@ func (db *DbNoSql) GetNotFollowing(id string, page int64, limit int64, search st
 }
 
 /* GetFollowingTweets returns the following's tweets */
-func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (interface{}, int64, error) {
-	var results interface{}
+func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (any, int64, error) {
+	var results any
 	var total int64
 	var err error
 
