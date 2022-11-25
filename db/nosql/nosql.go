@@ -185,7 +185,9 @@ func (db *DbNoSql) ModifyRegistry(id string, user mr.User) error {
 		registry["webSite"] = user.WebSite
 	}
 
-	registry["birthDate"] = user.BirthDate
+	if !user.BirthDate.IsZero() {
+		registry["birthDate"] = user.BirthDate
+	}
 
 	updateString := bson.M{
 		"$set": registry,
