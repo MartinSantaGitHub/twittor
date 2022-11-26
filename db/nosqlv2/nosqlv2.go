@@ -91,7 +91,7 @@ func (db *DbNoSqlV2) GetProfile(id string) (mr.User, bool, error) {
 		return profileRequest, false, err
 	}
 
-	profileRequest = GetUserRequest(profileModel)
+	profileRequest = getUserRequest(profileModel)
 
 	profileRequest.Password = ""
 
@@ -103,7 +103,7 @@ func (db *DbNoSqlV2) InsertUser(user mr.User) (string, error) {
 	col := getCollection(db, "twitton", "users")
 
 	user.Password, _ = encryptPassword(user.Password)
-	userModel, err := GetUserModel(user)
+	userModel, err := getUserModel(user)
 
 	if err != nil {
 		return "", err
@@ -141,7 +141,7 @@ func (db *DbNoSqlV2) IsUser(email string) (bool, mr.User, error) {
 		return false, requestModel, nil
 	}
 
-	requestModel = GetUserRequest(userModel)
+	requestModel = getUserRequest(userModel)
 
 	return true, requestModel, err
 }
@@ -288,7 +288,7 @@ func (db *DbNoSqlV2) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet,
 
 	if err == nil {
 		for _, tweetModel := range dbResults {
-			tweetRequest := GetTweetRequest(*tweetModel)
+			tweetRequest := getTweetRequest(*tweetModel)
 			results = append(results, &tweetRequest)
 
 			tweetRequest.UserId = ""
@@ -456,7 +456,7 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 			return results, total, err
 		}
 
-		userRequest := GetUserRequest(result)
+		userRequest := getUserRequest(result)
 
 		relationRequest := mr.Relation{
 			UserId:         id,
@@ -550,7 +550,7 @@ func (db *DbNoSqlV2) GetFollowing(id string, page int64, limit int64, search str
 
 	if err == nil {
 		for _, userModel := range dbResults {
-			userRequest := GetUserRequest(*userModel)
+			userRequest := getUserRequest(*userModel)
 			results = append(results, &userRequest)
 		}
 	}
@@ -612,7 +612,7 @@ func (db *DbNoSqlV2) GetNotFollowing(id string, page int64, limit int64, search 
 
 	if err == nil {
 		for _, userModel := range dbResults {
-			userRequest := GetUserRequest(*userModel)
+			userRequest := getUserRequest(*userModel)
 			results = append(results, &userRequest)
 		}
 	}
@@ -697,7 +697,7 @@ func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOn
 
 		if err == nil {
 			for _, tweetModel := range dbResults {
-				tweetRequest := GetTweetRequest(*tweetModel)
+				tweetRequest := getTweetRequest(*tweetModel)
 				reqResults = append(reqResults, &tweetRequest)
 			}
 
@@ -711,7 +711,7 @@ func (db *DbNoSqlV2) GetFollowingTweets(id string, page int64, limit int64, isOn
 
 		if err == nil {
 			for _, userTweetModel := range dbResults {
-				userTweetRequest := GetUserTweetRequest(*userTweetModel)
+				userTweetRequest := getUserTweetRequest(*userTweetModel)
 				reqResults = append(reqResults, &userTweetRequest)
 			}
 

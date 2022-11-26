@@ -11,8 +11,8 @@ import (
 
 // region "Mappers"
 
-/* GetUserModel obtains the DB User model */
-func GetUserModel(requestModel mr.User) (m.User, error) {
+/* getUserModel obtains the DB User model */
+func getUserModel(requestModel mr.User) (m.User, error) {
 	var userModel m.User
 
 	objId, err := getObjectId(requestModel.Id)
@@ -40,8 +40,8 @@ func GetUserModel(requestModel mr.User) (m.User, error) {
 	return userModel, nil
 }
 
-/* GetUserRequest obtains the Request User model */
-func GetUserRequest(userModel m.User) mr.User {
+/* getUserRequest obtains the Request User model */
+func getUserRequest(userModel m.User) mr.User {
 	requestModel := mr.User{
 		Id:        userModel.Id.Hex(),
 		Name:      userModel.Name,
@@ -59,8 +59,8 @@ func GetUserRequest(userModel m.User) mr.User {
 	return requestModel
 }
 
-/* GetTweetRequest obtains the Request Tweet model */
-func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
+/* getTweetRequest obtains the Request Tweet model */
+func getTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	requestModel := mr.Tweet{
 		Id:      tweetModel.Id.Hex(),
 		UserId:  tweetModel.UserId.Hex(),
@@ -72,8 +72,8 @@ func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	return requestModel
 }
 
-/* GetUserTweetRequest obtains the Request UserTweet model */
-func GetUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {
+/* getUserTweetRequest obtains the Request UserTweet model */
+func getUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {
 	requestModel := mr.UserTweet{
 		UserId:         userTweetModel.UserId.Hex(),
 		UserRelationId: userTweetModel.UserFollowingId.Hex(),

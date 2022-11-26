@@ -91,7 +91,7 @@ func (db *DbNoSql) GetProfile(id string) (mr.User, bool, error) {
 		return profileRequest, false, err
 	}
 
-	profileRequest = GetUserRequest(profileModel)
+	profileRequest = getUserRequest(profileModel)
 
 	profileRequest.Password = ""
 
@@ -103,7 +103,7 @@ func (db *DbNoSql) InsertUser(user mr.User) (string, error) {
 	col := getCollection(db, "twittor", "users")
 
 	user.Password, _ = encryptPassword(user.Password)
-	userModel, err := GetUserModel(user)
+	userModel, err := getUserModel(user)
 
 	if err != nil {
 		return "", err
@@ -141,7 +141,7 @@ func (db *DbNoSql) IsUser(email string) (bool, mr.User, error) {
 		return false, requestModel, nil
 	}
 
-	requestModel = GetUserRequest(userModel)
+	requestModel = getUserRequest(userModel)
 
 	return true, requestModel, err
 }
@@ -300,7 +300,7 @@ func (db *DbNoSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, i
 	}
 
 	for _, tweetModel := range tweetsDbResults {
-		tweetRequest := GetTweetRequest(*tweetModel)
+		tweetRequest := getTweetRequest(*tweetModel)
 		results = append(results, &tweetRequest)
 	}
 
@@ -309,7 +309,7 @@ func (db *DbNoSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, i
 
 /* InsertTweet inserts a tweet in the DB */
 func (db *DbNoSql) InsertTweet(tweet mr.Tweet) (string, error) {
-	tweetModel, err := GetTweetModel(tweet)
+	tweetModel, err := getTweetModel(tweet)
 
 	if err != nil {
 		return "", err
@@ -340,7 +340,7 @@ func (db *DbNoSql) InsertTweet(tweet mr.Tweet) (string, error) {
 func (db *DbNoSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	var result mr.Relation
 
-	relationModel, err := GetRelationModel(relation)
+	relationModel, err := getRelationModel(relation)
 
 	if err != nil {
 		return false, result, err
@@ -362,7 +362,7 @@ func (db *DbNoSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 		return false, result, nil
 	}
 
-	result = GetRelationRequest(relationModel)
+	result = getRelationRequest(relationModel)
 
 	return true, result, err
 }
@@ -387,7 +387,7 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	}
 
 	if !isFound {
-		relationModel, err := GetRelationModel(relation)
+		relationModel, err := getRelationModel(relation)
 
 		if err != nil {
 			return err
@@ -481,7 +481,7 @@ func (db *DbNoSql) GetUsers(id string, page int64, limit int64, search string, s
 			return results, total, err
 		}
 
-		userRequest := GetUserRequest(result)
+		userRequest := getUserRequest(result)
 
 		relationRequest := mr.Relation{
 			UserId:         id,
@@ -572,7 +572,7 @@ func (db *DbNoSql) GetFollowing(id string, page int64, limit int64, search strin
 
 	if err == nil {
 		for _, userModel := range dbResults {
-			userRequest := GetUserRequest(*userModel)
+			userRequest := getUserRequest(*userModel)
 			results = append(results, &userRequest)
 		}
 	}
@@ -649,7 +649,7 @@ func (db *DbNoSql) GetNotFollowing(id string, page int64, limit int64, search st
 
 	if err == nil {
 		for _, userModel := range dbResults {
-			userRequest := GetUserRequest(*userModel)
+			userRequest := getUserRequest(*userModel)
 			results = append(results, &userRequest)
 		}
 	}
@@ -718,7 +718,7 @@ func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnly
 
 		if err == nil {
 			for _, tweetModel := range dbResults {
-				tweetRequest := GetTweetRequest(*tweetModel)
+				tweetRequest := getTweetRequest(*tweetModel)
 				reqResults = append(reqResults, &tweetRequest)
 			}
 
@@ -732,7 +732,7 @@ func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnly
 
 		if err == nil {
 			for _, userTweetModel := range dbResults {
-				userTweetRequest := GetUserTweetRequest(*userTweetModel)
+				userTweetRequest := getUserTweetRequest(*userTweetModel)
 				reqResults = append(reqResults, &userTweetRequest)
 			}
 
@@ -748,7 +748,7 @@ func (db *DbNoSql) GetFollowingTweets(id string, page int64, limit int64, isOnly
 // region "Helpers"
 
 func (db *DbNoSql) deleteRelationFisical(relation mr.Relation) error {
-	relationModel, err := GetRelationModel(relation)
+	relationModel, err := getRelationModel(relation)
 
 	if err != nil {
 		return err
@@ -769,7 +769,7 @@ func (db *DbNoSql) deleteRelationFisical(relation mr.Relation) error {
 }
 
 func (db *DbNoSql) deleteRelationLogical(relation mr.Relation) error {
-	relationModel, err := GetRelationModel(relation)
+	relationModel, err := getRelationModel(relation)
 
 	if err != nil {
 		return err

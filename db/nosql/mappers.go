@@ -11,8 +11,8 @@ import (
 
 // region "Mappers"
 
-/* GetUserModel obtains the DB User model */
-func GetUserModel(requestModel mr.User) (m.User, error) {
+/* getUserModel obtains the DB User model */
+func getUserModel(requestModel mr.User) (m.User, error) {
 	var userModel m.User
 
 	objId, err := getObjectId(requestModel.Id)
@@ -38,8 +38,8 @@ func GetUserModel(requestModel mr.User) (m.User, error) {
 	return userModel, nil
 }
 
-/* GetUserRequest obtains the Request User model */
-func GetUserRequest(userModel m.User) mr.User {
+/* getUserRequest obtains the Request User model */
+func getUserRequest(userModel m.User) mr.User {
 	requestModel := mr.User{
 		Id:        userModel.Id.Hex(),
 		Name:      userModel.Name,
@@ -57,8 +57,8 @@ func GetUserRequest(userModel m.User) mr.User {
 	return requestModel
 }
 
-/* GetTweetModel obtains the DB Tweet model */
-func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
+/* getTweetModel obtains the DB Tweet model */
+func getTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
 	var tweetModel m.Tweet
 
 	objId, err := getObjectId(requestModel.Id)
@@ -84,8 +84,8 @@ func GetTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
 	return tweetModel, nil
 }
 
-/* GetTweetRequest obtains the Request Tweet model */
-func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
+/* getTweetRequest obtains the Request Tweet model */
+func getTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	requestModel := mr.Tweet{
 		Id:      tweetModel.Id.Hex(),
 		UserId:  tweetModel.UserId.Hex(),
@@ -97,8 +97,8 @@ func GetTweetRequest(tweetModel m.Tweet) mr.Tweet {
 	return requestModel
 }
 
-/* GetRelationModel obtains the DB Relation model */
-func GetRelationModel(requestModel mr.Relation) (m.Relation, error) {
+/* getRelationModel obtains the DB Relation model */
+func getRelationModel(requestModel mr.Relation) (m.Relation, error) {
 	var relationModel m.Relation
 
 	objId, err := getObjectId(requestModel.Id)
@@ -129,8 +129,8 @@ func GetRelationModel(requestModel mr.Relation) (m.Relation, error) {
 	return relationModel, nil
 }
 
-/* GetRelationRequest obtains the Request Relation model */
-func GetRelationRequest(relationModel m.Relation) mr.Relation {
+/* getRelationRequest obtains the Request Relation model */
+func getRelationRequest(relationModel m.Relation) mr.Relation {
 	requestModel := mr.Relation{
 		Id:             relationModel.Id.Hex(),
 		UserId:         relationModel.UserId.Hex(),
@@ -141,8 +141,8 @@ func GetRelationRequest(relationModel m.Relation) mr.Relation {
 	return requestModel
 }
 
-/* GetUserTweetRequest obtains the Request UserTweet model */
-func GetUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {
+/* getUserTweetRequest obtains the Request UserTweet model */
+func getUserTweetRequest(userTweetModel m.UserTweet) mr.UserTweet {
 	requestModel := mr.UserTweet{
 		Id:             userTweetModel.Id.Hex(),
 		UserId:         userTweetModel.UserId.Hex(),
