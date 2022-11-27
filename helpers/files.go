@@ -16,6 +16,12 @@ import (
 func UploadFileLocal(filepath string, file multipart.File) error {
 	f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_CREATE, 0666)
 
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
+
 	if err != nil {
 		return fmt.Errorf("Error uploading the file: " + err.Error())
 	}
@@ -67,13 +73,13 @@ func DestroyRemote(publicId string) error {
 
 /* GetFileLocal Gets a file form the local server */
 func GetFileLocal(filepath string) (io.ReadCloser, error) {
-	file, err := os.Open(filepath)
+	f, err := os.Open(filepath)
 
 	if err != nil {
 		return nil, fmt.Errorf(err.Error())
 	}
 
-	return file, nil
+	return f, nil
 }
 
 /* GetFileRemote Gets a file form a remote server */
