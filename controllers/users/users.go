@@ -376,7 +376,7 @@ func saveToDB(user req.User) error {
 	err := db.DbConn.ModifyRegistry(jwt.UserId, user)
 
 	if err != nil {
-		return fmt.Errorf("Error when saving the file in the DB: " + err.Error())
+		return fmt.Errorf("error when saving the file in the DB: %s", err.Error())
 	}
 
 	return nil

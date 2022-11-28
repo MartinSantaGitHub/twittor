@@ -23,13 +23,13 @@ func UploadFileLocal(filepath string, file multipart.File) error {
 	}()
 
 	if err != nil {
-		return fmt.Errorf("Error uploading the file: " + err.Error())
+		return fmt.Errorf("error uploading the file: %s", err.Error())
 	}
 
 	_, err = io.Copy(f, file)
 
 	if err != nil {
-		return fmt.Errorf("Error creating the file: " + err.Error())
+		return fmt.Errorf("error creating the file: %s", err.Error())
 	}
 
 	return nil
@@ -75,11 +75,7 @@ func DestroyRemote(publicId string) error {
 func GetFileLocal(filepath string) (io.ReadCloser, error) {
 	f, err := os.Open(filepath)
 
-	if err != nil {
-		return nil, fmt.Errorf(err.Error())
-	}
-
-	return f, nil
+	return f, err
 }
 
 /* GetFileRemote Gets a file form a remote server */
