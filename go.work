@@ -14,7 +14,6 @@ use (
 	./helpers
 	./jwt
 	./middlewares
-	./models
 	./models/nosql
 	./models/nosqlv2
 	./models/relational
