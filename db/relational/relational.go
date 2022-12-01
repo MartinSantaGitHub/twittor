@@ -18,7 +18,7 @@ func (db *DbSql) Connect() error {
 	return nil
 }
 
-/* CheckConnection makes a ping to the Database */
+/* IsConnection makes a ping to the Database */
 func (db *DbSql) IsConnection() bool {
 	log.Fatal("Method not implemented")
 

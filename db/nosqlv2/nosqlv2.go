@@ -43,7 +43,7 @@ func (db *DbNoSqlV2) Connect() error {
 	return nil
 }
 
-/* CheckConnection makes a ping to the Database */
+/* IsConnection makes a ping to the Database */
 func (db *DbNoSqlV2) IsConnection() bool {
 	err := db.Connection.Ping(context.TODO(), nil)
 
