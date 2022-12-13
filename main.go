@@ -33,5 +33,5 @@ func main() {
 
 	log.Println("Connection successful to the DB")
 
-	handlers.Handlers()
+	handlers.SetHandlers()
 }

@@ -17,8 +17,8 @@ func home(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./public/index.html")
 }
 
-/* Handler that set the PORT and run the service */
-func Handlers() {
+/* Handlers set the PORT and run the service */
+func SetHandlers() {
 	router := mux.NewRouter()
 
 	// Register Home page service
