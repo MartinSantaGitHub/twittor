@@ -1,28 +1,71 @@
 package relational
 
 import (
+	"fmt"
 	"log"
+	"os"
+
+	"helpers"
+	m "models/relational"
 	mr "models/request"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type DbSql struct {
-	Connection any
+	Connection *gorm.DB
 }
 
 // region "Connection"
 
 /* Connect connects to the database */
 func (db *DbSql) Connect() error {
-	log.Fatal("Method not implemented")
+	host := os.Getenv("DB_REL_HOST")
+	port := os.Getenv("DB_REL_PORT")
+	user := os.Getenv("DB_REL_USER")
+	pass := os.Getenv("DB_REL_PASS")
+	dbName := os.Getenv("DB_REL_NAME")
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s", host, user, pass, dbName, port)
+	client, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	if err != nil {
+		return err
+	}
+
+	db.Connection = client
+
+	client.AutoMigrate(&m.User{})
+	client.AutoMigrate(&m.Relation{})
+	client.AutoMigrate(&m.Tweet{})
 
 	return nil
 }
 
 /* IsConnection makes a ping to the Database */
 func (db *DbSql) IsConnection() bool {
-	log.Fatal("Method not implemented")
+	sqlDb, err := db.Connection.DB()
 
-	return false
+	if err != nil {
+		fmt.Println(err.Error())
+
+		return false
+	}
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	err = sqlDb.PingContext(ctx)
+
+	if err != nil {
+		fmt.Println(err.Error())
+
+		return false
+	}
+
+	return true
 }
 
 // endregion

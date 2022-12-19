@@ -101,12 +101,6 @@ func getTweetRequest(tweetModel m.Tweet) mr.Tweet {
 func getRelationModel(requestModel mr.Relation) (m.Relation, error) {
 	var relationModel m.Relation
 
-	objId, err := getObjectId(requestModel.Id)
-
-	if err != nil {
-		return relationModel, err
-	}
-
 	objUserId, err := getObjectId(requestModel.UserId)
 
 	if err != nil {
@@ -120,7 +114,6 @@ func getRelationModel(requestModel mr.Relation) (m.Relation, error) {
 	}
 
 	relationModel = m.Relation{
-		Id:             objId,
 		UserId:         objUserId,
 		UserRelationId: objUserRelationId,
 		Active:         requestModel.Active,
@@ -132,7 +125,6 @@ func getRelationModel(requestModel mr.Relation) (m.Relation, error) {
 /* getRelationRequest obtains the Request Relation model */
 func getRelationRequest(relationModel m.Relation) mr.Relation {
 	requestModel := mr.Relation{
-		Id:             relationModel.Id.Hex(),
 		UserId:         relationModel.UserId.Hex(),
 		UserRelationId: relationModel.UserRelationId.Hex(),
 		Active:         relationModel.Active,

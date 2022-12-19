@@ -45,7 +45,11 @@ func (db *DbNoSqlV2) Connect() error {
 
 /* IsConnection makes a ping to the Database */
 func (db *DbNoSqlV2) IsConnection() bool {
-	err := db.Connection.Ping(context.TODO(), nil)
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	err := db.Connection.Ping(ctx, nil)
 
 	if err != nil {
 		fmt.Println(err.Error())

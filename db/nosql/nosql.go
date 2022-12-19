@@ -45,7 +45,11 @@ func (db *DbNoSql) Connect() error {
 
 /* IsConnection makes a ping to the Database */
 func (db *DbNoSql) IsConnection() bool {
-	err := db.Connection.Ping(context.TODO(), nil)
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	err := db.Connection.Ping(ctx, nil)
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -410,17 +414,14 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 		"$set": bson.M{"active": true},
 	}
 
-	id, err := getObjectId(relationDb.Id)
-
-	if err != nil {
-		return err
-	}
-
 	ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancelUpdate()
 
-	_, err = col.UpdateByID(ctxUpdate, id, updateString)
+	_, err = col.UpdateOne(ctxUpdate, bson.M{
+		"userId":         relationDb.UserId,
+		"userRelationId": relationDb.UserRelationId,
+	}, updateString)
 
 	return err
 }

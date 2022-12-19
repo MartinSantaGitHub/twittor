@@ -56,7 +56,7 @@ func SetDataBaseConnector(dbType string) {
 
 		DbConn = dbNoSqlV2
 	case "Sql":
-		dbSql := new(dr.DbSql)
+		dbSql := &dr.DbSql{}
 
 		dbSql.Connect()
 
