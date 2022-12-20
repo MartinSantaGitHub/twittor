@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"helpers"
 	m "models/relational"
 	mr "models/request"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -74,46 +76,151 @@ func (db *DbSql) IsConnection() bool {
 
 /* GetProfile gets a profile in the DB */
 func (db *DbSql) GetProfile(id string) (mr.User, bool, error) {
-	var profile mr.User
+	var profileRequest mr.User
+	var profileModel m.User
 
-	log.Fatal("Method not implemented")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	return profile, false, nil
+	defer cancel()
+
+	result := db.Connection.WithContext(ctx).First(&profileModel, id)
+	err := result.Error
+
+	if err != nil && err == gorm.ErrRecordNotFound {
+		log.Println("Registry not found: " + err.Error())
+
+		return profileRequest, false, nil
+	} else if err != nil {
+		return profileRequest, false, err
+	}
+
+	profileRequest = getUserRequest(profileModel)
+
+	profileRequest.Password = ""
+
+	return profileRequest, true, nil
 }
 
 /* InsertUser inserts an user into de DB */
 func (db *DbSql) InsertUser(user mr.User) (string, error) {
-	log.Fatal("Method not implemented")
+	user.Password, _ = encryptPassword(user.Password)
+	userModel, err := getUserModel(user)
 
-	return "", nil
+	if err != nil {
+		return "", err
+	}
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	result := db.Connection.WithContext(ctx).Create(&userModel)
+	err = result.Error
+
+	if err != nil {
+		return "", err
+	}
+
+	return strconv.FormatUint(userModel.Id, 10), nil
 }
 
 /* IsUser checks that the user already exists in the DB */
 func (db *DbSql) IsUser(email string) (bool, mr.User, error) {
-	var result mr.User
-	var err error
+	var userModel m.User
+	var requestModel mr.User
 
-	log.Fatal("Method not implemented")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	return false, result, err
+	defer cancel()
+
+	result := db.Connection.WithContext(ctx).Where(&m.User{Email: email}).First(&userModel)
+	err := result.Error
+
+	if err != nil && err == gorm.ErrRecordNotFound {
+		return false, requestModel, nil
+	}
+
+	requestModel = getUserRequest(userModel)
+
+	return true, requestModel, err
 }
 
 /* ModifyRegistry modifies a registry in the DB */
 func (db *DbSql) ModifyRegistry(id string, user mr.User) error {
-	var err error
+	registry := make(map[string]any)
 
-	log.Fatal("Method not implemented")
+	if len(user.Name) > 0 {
+		registry["name"] = user.Name
+	}
 
-	return err
+	if len(user.LastName) > 0 {
+		registry["lastName"] = user.LastName
+	}
+
+	if len(user.Avatar) > 0 {
+		registry["Avatar"] = user.Avatar
+	}
+
+	if len(user.Banner) > 0 {
+		registry["banner"] = user.Banner
+	}
+
+	if len(user.Biography) > 0 {
+		registry["biography"] = user.Biography
+	}
+
+	if len(user.Location) > 0 {
+		registry["location"] = user.Location
+	}
+
+	if len(user.WebSite) > 0 {
+		registry["webSite"] = user.WebSite
+	}
+
+	if !user.BirthDate.IsZero() {
+		registry["birthDate"] = user.BirthDate
+	}
+
+	user.Id = id
+	userModel, err := getUserModel(user)
+
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	result := db.Connection.WithContext(ctx).Model(&userModel).Updates(registry)
+	err = result.Error
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 /* TryLogin makes the login to the DB */
 func (db *DbSql) TryLogin(email string, password string) (mr.User, bool) {
-	var user mr.User
+	var requestModel mr.User
 
-	log.Fatal("Method not implemented")
+	isFound, requestModel, err := db.IsUser(email)
 
-	return user, false
+	if err != nil || !isFound {
+		return requestModel, false
+	}
+
+	passwordBytes := []byte(password)
+	passwordDB := []byte(requestModel.Password)
+	err = bcrypt.CompareHashAndPassword(passwordDB, passwordBytes)
+
+	if err != nil {
+		return requestModel, false
+	}
+
+	return requestModel, true
 }
 
 // endregion
@@ -253,6 +360,17 @@ func (db *DbSql) deleteRelationLogical(relation mr.Relation) error {
 	log.Fatal("Method not implemented")
 
 	return nil
+}
+
+func encryptPassword(password string) (string, error) {
+	// Minimum - cost: 6
+	// Common user - cost: 6
+	// Admin user - cost: 8
+
+	cost := 8
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), cost)
+
+	return string(bytes), err
 }
 
 // endregion
