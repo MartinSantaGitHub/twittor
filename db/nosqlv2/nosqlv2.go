@@ -243,11 +243,7 @@ func (db *DbNoSqlV2) TryLogin(email string, password string) (mr.User, bool) {
 func (db *DbNoSqlV2) DeleteTweet(id string, userId string) error {
 	err := db.deleteTweetLogical(id, userId)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 /* Get gets an user's tweets from the DB */
@@ -408,11 +404,7 @@ func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 func (db *DbNoSqlV2) DeleteRelation(relation mr.Relation) error {
 	err := db.deleteRelationFisical(relation)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 /* GetUsers gets a list of users */

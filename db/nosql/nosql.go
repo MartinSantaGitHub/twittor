@@ -243,11 +243,7 @@ func (db *DbNoSql) TryLogin(email string, password string) (mr.User, bool) {
 func (db *DbNoSql) DeleteTweet(id string, userId string) error {
 	err := db.deleteTweetLogical(id, userId)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 /* Get gets an user's tweets from the DB */
@@ -407,34 +403,19 @@ func (db *DbNoSql) InsertRelation(relation mr.Relation) error {
 	}
 
 	if relationDb.Active {
-		return fmt.Errorf("the relation with the user id: %s already exists", relation.UserRelationId)
+		return fmt.Errorf("the relation with the user id = %s already exists", relation.UserRelationId)
 	}
 
-	updateString := bson.M{
-		"$set": bson.M{"active": true},
-	}
-
-	ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-	defer cancelUpdate()
-
-	_, err = col.UpdateOne(ctxUpdate, bson.M{
-		"userId":         relationDb.UserId,
-		"userRelationId": relationDb.UserRelationId,
-	}, updateString)
+	err = db.updateRelation(relationDb, true)
 
 	return err
 }
 
 /* DeleteRelation deletes a relation in the DB */
 func (db *DbNoSql) DeleteRelation(relation mr.Relation) error {
-	err := db.deleteRelationLogical(relation)
+	err := db.updateRelation(relation, false)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 /* GetUsers gets a list of users */
@@ -769,7 +750,7 @@ func (db *DbNoSql) deleteRelationFisical(relation mr.Relation) error {
 	return err
 }
 
-func (db *DbNoSql) deleteRelationLogical(relation mr.Relation) error {
+func (db *DbNoSql) updateRelation(relation mr.Relation, value bool) error {
 	relationModel, err := getRelationModel(relation)
 
 	if err != nil {
@@ -781,7 +762,7 @@ func (db *DbNoSql) deleteRelationLogical(relation mr.Relation) error {
 		"userId":         relationModel.UserId,
 		"userRelationId": relationModel.UserRelationId,
 	}
-	updateString := map[string]map[string]bool{"$set": {"active": false}}
+	updateString := map[string]map[string]bool{"$set": {"active": value}}
 
 	// Also bson.M{"$set": bson.M{"active": false},} in the updateString
 
