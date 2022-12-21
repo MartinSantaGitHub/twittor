@@ -1,6 +1,7 @@
 package relational
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -110,16 +111,21 @@ func (db *DbSql) InsertUser(user mr.User) (string, error) {
 		return "", err
 	}
 
+	tx := db.Connection.Begin()
 	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
-	result := db.Connection.WithContext(ctx).Create(&userModel)
+	result := tx.WithContext(ctx).Create(&userModel)
 	err = result.Error
 
 	if err != nil {
+		tx.Rollback()
+
 		return "", err
 	}
+
+	tx.Commit()
 
 	return strconv.FormatUint(userModel.Id, 10), nil
 }
@@ -154,11 +160,11 @@ func (db *DbSql) ModifyRegistry(id string, user mr.User) error {
 	}
 
 	if len(user.LastName) > 0 {
-		registry["lastName"] = user.LastName
+		registry["last_name"] = user.LastName
 	}
 
 	if len(user.Avatar) > 0 {
-		registry["Avatar"] = user.Avatar
+		registry["avatar"] = user.Avatar
 	}
 
 	if len(user.Banner) > 0 {
@@ -174,30 +180,29 @@ func (db *DbSql) ModifyRegistry(id string, user mr.User) error {
 	}
 
 	if len(user.WebSite) > 0 {
-		registry["webSite"] = user.WebSite
+		registry["web_site"] = user.WebSite
 	}
 
 	if !user.BirthDate.IsZero() {
-		registry["birthDate"] = user.BirthDate
+		registry["birth_date"] = user.BirthDate
 	}
 
-	user.Id = id
-	userModel, err := getUserModel(user)
-
-	if err != nil {
-		return err
-	}
-
+	userId, _ := getUintId(id)
+	tx := db.Connection.Begin()
 	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
 
-	result := db.Connection.WithContext(ctx).Model(&userModel).Updates(registry)
-	err = result.Error
+	result := tx.WithContext(ctx).Model(&m.User{Id: userId}).Updates(registry)
+	err := result.Error
 
 	if err != nil {
+		tx.Rollback()
+
 		return err
 	}
+
+	tx.Commit()
 
 	return nil
 }
@@ -241,18 +246,68 @@ func (db *DbSql) DeleteTweet(id string, userId string) error {
 /* Get gets an user's tweets from the DB */
 func (db *DbSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int64, error) {
 	var results []*mr.Tweet
+	var tweetsDbResults []m.Tweet
+	var total int64
 
-	log.Fatal("Method not implemented")
+	uintUserId, err := getUintId(id)
 
-	return results, 0, nil
+	if err != nil {
+		return results, 0, err
+	}
+
+	filter := &m.Tweet{UserId: uintUserId, Active: true}
+
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelCount()
+
+	db.Connection.WithContext(ctxCount).Model(&m.Tweet{}).Where(filter).Count(&total)
+
+	offset := int((page - 1) * limit)
+	limitInt := int(limit)
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	result := db.Connection.WithContext(ctx).Where(filter).Order("date desc").Offset(offset).Limit(limitInt).Find(&tweetsDbResults)
+	err = result.Error
+
+	if err != nil {
+		return results, 0, err
+	}
+
+	for _, tweetModel := range tweetsDbResults {
+		tweetRequest := getTweetRequest(tweetModel)
+		results = append(results, &tweetRequest)
+	}
+
+	return results, total, nil
 }
 
 /* InsertTweet inserts a tweet in the DB */
 func (db *DbSql) InsertTweet(tweet mr.Tweet) (string, error) {
-	log.Fatal("Method not implemented")
+	tweetModel, err := getTweetModel(tweet)
 
-	// The same goes with objId.Hex()
-	return "", nil
+	if err != nil {
+		return "", err
+	}
+
+	tx := db.Connection.Begin()
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	err = tx.WithContext(ctx).Model(&m.User{Id: tweetModel.UserId}).Association("Tweets").Append(&tweetModel)
+
+	if err != nil {
+		tx.Rollback()
+
+		return "", err
+	}
+
+	tx.Commit()
+
+	return strconv.FormatUint(tweetModel.Id, 10), nil
 }
 
 // endregion
@@ -262,19 +317,94 @@ func (db *DbSql) InsertTweet(tweet mr.Tweet) (string, error) {
 /* IsRelation verifies if exist a relation in the DB */
 func (db *DbSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 	var result mr.Relation
+	var relationModel m.Relation
 
-	log.Fatal("Method not implemented")
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	return false, result, nil
+	defer cancel()
+
+	results := db.Connection.WithContext(ctx).Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).Find(&relationModel)
+	err := results.Error
+
+	if err != nil && err == gorm.ErrRecordNotFound {
+		return false, result, nil
+	}
+
+	result = getRelationRequest(relationModel)
+
+	return true, result, err
 }
 
 /* InsertRelation creates a relation into the DB */
 func (db *DbSql) InsertRelation(relation mr.Relation) error {
-	var err error
+	// _, isFound, err := db.GetProfile(relation.UserRelationId)
 
-	log.Fatal("Method not implemented")
+	// if err != nil {
+	// 	return err
+	// }
 
-	return err
+	// if !isFound {
+	// 	return errors.New("no registry found in the DB")
+	// }
+
+	// isFound, relationDb, err := db.IsRelation(relation)
+
+	// if err != nil {
+	// 	return err
+	// }
+
+	// if !isFound {
+	// 	idUser, err := getUintId(relation.UserId)
+	// 	idRelationUser, err := getUintId(relation.UserRelationId)
+
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	ctxAppend, cancelAppend := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	// 	defer cancelAppend()
+
+	// 	err = db.Connection.WithContext(ctxAppend).Model(&m.User{Id: idUser}).Association("Following").Append(&m.User{Id: idRelationUser})
+
+	// 	ctxInsert, cancelInsert := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	// 	defer cancelInsert()
+
+	// 	result := db.Connection.WithContext(ctxInsert).Create(&userModel)
+	// 	err = result.Error
+
+	// 	_, err = col.InsertOne(ctxInsert, relationModel)
+
+	// 	return err
+	// }
+
+	// if relationDb.Active {
+	// 	return fmt.Errorf("the relation with the user id: %s already exists", relation.UserRelationId)
+	// }
+
+	// updateString := bson.M{
+	// 	"$set": bson.M{"active": true},
+	// }
+
+	// ctxUpdate, cancelUpdate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	// defer cancelUpdate()
+
+	// _, err = col.UpdateOne(ctxUpdate, bson.M{
+	// 	"userId":         relationDb.UserId,
+	// 	"userRelationId": relationDb.UserRelationId,
+	// }, updateString)
+
+	// return err
+
+	err := db.deleteRelationLogical(relation)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 /* DeleteRelation deletes a relation in the DB */
@@ -339,15 +469,89 @@ func (db *DbSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTw
 // region "Helpers"
 
 func (db *DbSql) deleteTweetFisical(id string, userId string) error {
-	log.Fatal("Method not implemented")
+	var tweetModel m.Tweet
 
-	return nil
+	uintId, err := getUintId(id)
+
+	if err != nil {
+		return err
+	}
+
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	result := db.Connection.WithContext(ctxFind).First(&tweetModel, uintId)
+	err = result.Error
+
+	if err != nil {
+		return err
+	}
+
+	uintUserId, _ := getUintId(userId)
+
+	if uintUserId != tweetModel.UserId {
+		return errors.New("invalid operation - cannot delete a non-owner tweet")
+	}
+
+	tx := db.Connection.Begin()
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	result = tx.WithContext(ctx).Delete(&m.Tweet{}, uintId)
+	err = result.Error
+
+	if err != nil {
+		tx.Rollback()
+	} else {
+		tx.Commit()
+	}
+
+	return err
 }
 
 func (db *DbSql) deleteTweetLogical(id string, userId string) error {
-	log.Fatal("Method not implemented")
+	var tweetModel m.Tweet
 
-	return nil
+	uintId, err := getUintId(id)
+
+	if err != nil {
+		return err
+	}
+
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	result := db.Connection.WithContext(ctxFind).First(&tweetModel, uintId)
+	err = result.Error
+
+	if err != nil {
+		return err
+	}
+
+	uintUserId, _ := getUintId(userId)
+
+	if uintUserId != tweetModel.UserId {
+		return errors.New("invalid operation - cannot delete a non-owner tweet")
+	}
+
+	tx := db.Connection.Begin()
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	result = tx.WithContext(ctx).Model(&tweetModel).Update("active", false)
+	err = result.Error
+
+	if err != nil {
+		tx.Rollback()
+	} else {
+		tx.Commit()
+	}
+
+	return err
 }
 
 func (db *DbSql) deleteRelationFisical(relation mr.Relation) error {

@@ -170,7 +170,7 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 	}
 
 	if len(user.Avatar) > 0 {
-		registry["Avatar"] = user.Avatar
+		registry["avatar"] = user.Avatar
 	}
 
 	if len(user.Banner) > 0 {

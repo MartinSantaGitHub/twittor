@@ -170,7 +170,7 @@ func (db *DbNoSql) ModifyRegistry(id string, user mr.User) error {
 	}
 
 	if len(user.Avatar) > 0 {
-		registry["Avatar"] = user.Avatar
+		registry["avatar"] = user.Avatar
 	}
 
 	if len(user.Banner) > 0 {
@@ -824,11 +824,6 @@ func (db *DbNoSql) deleteTweetFisical(id string, userId string) error {
 		return errors.New("invalid operation - cannot delete a non-owner tweet")
 	}
 
-	condition = bson.M{
-		"_id":    objId,
-		"userId": objUserId,
-	}
-
 	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
 	defer cancel()
@@ -868,10 +863,6 @@ func (db *DbNoSql) deleteTweetLogical(id string, userId string) error {
 		return errors.New("invalid operation - cannot delete a non-owner tweet")
 	}
 
-	condition = bson.M{
-		"_id":    objId,
-		"userId": objUserId,
-	}
 	updateString := bson.M{
 		"$set": bson.M{"active": false},
 	}

@@ -1,6 +1,7 @@
 package relational
 
 import (
+	"fmt"
 	"strconv"
 
 	m "models/relational"
@@ -32,7 +33,7 @@ func getUserRequest(userModel m.User) mr.User {
 func getUserModel(requestModel mr.User) (m.User, error) {
 	var userModel m.User
 
-	id, err := strconv.ParseUint(requestModel.Id, 10, 64)
+	id, err := getUintId(requestModel.Id)
 
 	if err != nil {
 		return userModel, err
@@ -53,6 +54,87 @@ func getUserModel(requestModel mr.User) (m.User, error) {
 	}
 
 	return userModel, nil
+}
+
+/* getTweetRequest obtains the Request Tweet model */
+func getTweetRequest(tweetModel m.Tweet) mr.Tweet {
+	requestModel := mr.Tweet{
+		Id:      strconv.FormatUint(tweetModel.Id, 10),
+		UserId:  strconv.FormatUint(tweetModel.UserId, 10),
+		Message: tweetModel.Message,
+		Date:    tweetModel.Date,
+		Active:  tweetModel.Active,
+	}
+
+	return requestModel
+}
+
+/* getTweetModel obtains the DB Tweet model */
+func getTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
+	var tweetModel m.Tweet
+
+	uintId, err := getUintId(requestModel.Id)
+
+	if err != nil {
+		return tweetModel, err
+	}
+
+	uintUserId, err := getUintId(requestModel.UserId)
+
+	if err != nil {
+		return tweetModel, err
+	}
+
+	tweetModel = m.Tweet{
+		Id:      uintId,
+		Message: requestModel.Message,
+		Date:    requestModel.Date,
+		Active:  requestModel.Active,
+		UserId:  uintUserId,
+	}
+
+	return tweetModel, nil
+}
+
+/* getRelationModel obtains the DB Relation model */
+func getRelationModel(requestModel mr.Relation) m.Relation {
+	var relationModel m.Relation
+
+	relationModel = m.Relation{
+		Active: requestModel.Active,
+	}
+
+	return relationModel
+}
+
+/* getRelationRequest obtains the Request Relation model */
+func getRelationRequest(relationModel m.Relation) mr.Relation {
+	requestModel := mr.Relation{
+		Active: relationModel.Active,
+	}
+
+	return requestModel
+}
+
+// endregion
+
+// region "Helpers"
+
+func getUintId(id string) (uint64, error) {
+	var uintId uint64
+	var err error
+
+	if len(id) < 1 {
+		return uintId, nil
+	}
+
+	uintId, err = strconv.ParseUint(id, 10, 64)
+
+	if err != nil {
+		return uintId, fmt.Errorf("invalid id param")
+	}
+
+	return uintId, nil
 }
 
 // endregion
