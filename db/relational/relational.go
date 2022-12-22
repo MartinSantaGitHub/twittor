@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"helpers"
 	m "models/relational"
@@ -139,7 +140,9 @@ func (db *DbSql) IsUser(email string) (bool, mr.User, error) {
 
 	defer cancel()
 
-	result := db.Connection.WithContext(ctx).Where(&m.User{Email: email}).First(&userModel)
+	result := db.Connection.WithContext(ctx).
+		Where(&m.User{Email: email}).
+		First(&userModel)
 	err := result.Error
 
 	if err != nil && err == gorm.ErrRecordNotFound {
@@ -257,7 +260,15 @@ func (db *DbSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int
 
 	defer cancelCount()
 
-	db.Connection.WithContext(ctxCount).Model(&m.Tweet{}).Where(filter).Count(&total)
+	result := db.Connection.WithContext(ctxCount).
+		Model(&m.Tweet{}).
+		Where(filter).
+		Count(&total)
+	err = result.Error
+
+	if err != nil {
+		return results, 0, err
+	}
 
 	offset := int((page - 1) * limit)
 	limitInt := int(limit)
@@ -265,7 +276,12 @@ func (db *DbSql) GetTweets(id string, page int64, limit int64) ([]*mr.Tweet, int
 
 	defer cancel()
 
-	result := db.Connection.WithContext(ctx).Where(filter).Order("date desc").Offset(offset).Limit(limitInt).Find(&tweetsDbResults)
+	result = db.Connection.WithContext(ctx).
+		Where(filter).
+		Order("date desc").
+		Offset(offset).
+		Limit(limitInt).
+		Find(&tweetsDbResults)
 	err = result.Error
 
 	if err != nil {
@@ -319,7 +335,9 @@ func (db *DbSql) IsRelation(relation mr.Relation) (bool, mr.Relation, error) {
 
 	defer cancel()
 
-	results := db.Connection.WithContext(ctx).Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).First(&relationModel)
+	results := db.Connection.WithContext(ctx).
+		Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).
+		First(&relationModel)
 	err := results.Error
 
 	if err != nil && err == gorm.ErrRecordNotFound {
@@ -392,28 +410,198 @@ func (db *DbSql) DeleteRelation(relation mr.Relation) error {
 /* GetUsers gets an user's following or not following list */
 func (db *DbSql) GetUsers(id string, page int64, limit int64, search string, searchType string) ([]*mr.User, int64, error) {
 	var results []*mr.User
+	var users []m.User
+	var total int64
 
-	log.Fatal("Method not implemented")
+	offset := int((page - 1) * limit)
+	limitInt := int(limit)
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	return results, 0, nil
+	defer cancelFind()
+
+	result := db.Connection.WithContext(ctxFind).
+		Where("id <> ? AND lower(name) LIKE ?", id, "%"+strings.ToLower(search)+"%").
+		Order("birth_date desc").Offset(offset).
+		Limit(limitInt).
+		Find(&users)
+	err := result.Error
+
+	if err != nil {
+		return results, total, err
+	}
+
+	var include, isRelation bool
+
+	for _, user := range users {
+		isRelation = false
+		include = false
+
+		if err != nil {
+			return results, total, err
+		}
+
+		userRequest := getUserRequest(user)
+
+		relationRequest := mr.Relation{
+			UserId:         id,
+			UserRelationId: userRequest.Id,
+			Active:         true,
+		}
+
+		isFound, relationDb, err := db.IsRelation(relationRequest)
+
+		if err != nil {
+			return results, total, err
+		}
+
+		if isFound {
+			isRelation = relationDb.Active
+		}
+
+		if relationRequest.UserRelationId == id {
+			include = false
+		} else if (searchType == "new" && !isRelation) || (searchType == "follow" && isRelation) {
+			include = true
+		}
+
+		if include {
+			userRequest.Email = ""
+			userRequest.Password = ""
+			userRequest.Avatar = ""
+			userRequest.Banner = ""
+			userRequest.Biography = ""
+			userRequest.Location = ""
+			userRequest.WebSite = ""
+
+			results = append(results, &userRequest)
+		}
+	}
+
+	// This total only reflects the total returned registries
+	total = int64(len(results))
+
+	return results, total, nil
 }
 
 /* GetFollowing gets an user's following list */
 func (db *DbSql) GetFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
 	var results []*mr.User
+	var user m.User
+	var total int64
 
-	log.Fatal("Method not implemented")
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
 
-	return results, 0, nil
+	defer cancelCount()
+
+	filter := "lower(name) LIKE ?"
+	condition := "%" + strings.ToLower(search) + "%"
+	result := db.Connection.WithContext(ctxCount).
+		Preload("Following", filter, condition).
+		First(&user, id)
+	err := result.Error
+
+	if err != nil {
+		return results, total, err
+	}
+
+	total = int64(len(user.Following))
+
+	offset := int((page - 1) * limit)
+	limitInt := int(limit)
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	result = db.Connection.WithContext(ctxFind).
+		Preload("Following", func(db *gorm.DB) *gorm.DB {
+			return db.Where(filter, condition).
+				Order("birth_date desc").
+				Offset(offset).
+				Limit(limitInt).
+				Select("id", "name", "last_name", "birth_date")
+		}).First(&user, id)
+	err = result.Error
+
+	if err == nil {
+		for _, userModel := range user.Following {
+			userRequest := getUserRequest(userModel)
+			results = append(results, &userRequest)
+		}
+	}
+
+	return results, total, err
 }
 
 /* GetNotFollowing gets an user's not following list */
 func (db *DbSql) GetNotFollowing(id string, page int64, limit int64, search string) ([]*mr.User, int64, error) {
 	var results []*mr.User
+	var users []m.User
+	var total int64
 
-	log.Fatal("Method not implemented")
+	uintId, _ := getUintId(id)
 
-	return results, 0, nil
+	ctxNewUsers, cancelNewUsers := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelNewUsers()
+
+	err := db.Connection.WithContext(ctxNewUsers).
+		Model(&m.User{Id: uintId}).
+		Select("id").
+		Association("Following").
+		Find(&users)
+
+	if err != nil {
+		return results, total, err
+	}
+
+	notIds := []uint64{uintId}
+
+	for _, user := range users {
+		notIds = append(notIds, user.Id)
+	}
+
+	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelCount()
+
+	filter := "lower(name) LIKE ?"
+	condition := "%" + strings.ToLower(search) + "%"
+	result := db.Connection.WithContext(ctxCount).
+		Model(&m.User{}).
+		Not(notIds).
+		Where(filter, condition).
+		Count(&total)
+	err = result.Error
+
+	if err != nil {
+		return results, total, err
+	}
+
+	offset := int((page - 1) * limit)
+	limitInt := int(limit)
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	result = db.Connection.WithContext(ctxFind).
+		Model(&m.User{}).
+		Not(notIds).
+		Where(filter, condition).
+		Order("birth_date desc").
+		Offset(offset).
+		Limit(limitInt).
+		Select("id", "name", "last_name", "birth_date").
+		Find(&users)
+	err = result.Error
+
+	if err == nil {
+		for _, userModel := range users {
+			userRequest := getUserRequest(userModel)
+			results = append(results, &userRequest)
+		}
+	}
+
+	return results, total, err
 }
 
 /* GetFollowingTweets returns the following's tweets */
@@ -563,5 +751,64 @@ func encryptPassword(password string) (string, error) {
 
 	return string(bytes), err
 }
+
+// func getResults[T any](db *DbSql, colName string, countPipeline []primitive.M, aggPipeline []primitive.M) ([]*T, int64, error) {
+// 	var results []*T
+// 	var totalResult m.TotalResult
+
+// 	col := getCollection(db, "twittor", colName)
+
+// 	// region "Count"
+
+// 	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+// 	defer cancelCount()
+
+// 	curCount, err := col.Aggregate(ctxCount, countPipeline)
+
+// 	if err != nil {
+// 		return results, totalResult.Total, err
+// 	}
+
+// 	ctxCurCount := context.TODO()
+
+// 	defer curCount.Close(ctxCurCount)
+
+// 	if curCount.Next(ctxCurCount) {
+// 		err = curCount.Decode(&totalResult)
+// 	}
+
+// 	if err != nil {
+// 		return results, totalResult.Total, err
+// 	}
+
+// 	// endregion
+
+// 	// region "Aggregate"
+
+// 	ctxAggregate, cancelAggregate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+// 	defer cancelAggregate()
+
+// 	curAgg, err := col.Aggregate(ctxAggregate, aggPipeline)
+
+// 	if err != nil {
+// 		return results, totalResult.Total, err
+// 	}
+
+// 	ctxCurAgg := context.TODO()
+
+// 	defer curAgg.Close(ctxCurAgg)
+
+// 	err = curAgg.All(ctxCurAgg, &results)
+
+// 	if err != nil {
+// 		return results, totalResult.Total, err
+// 	}
+
+// 	// endregion
+
+// 	return results, totalResult.Total, nil
+// }
 
 // endregion

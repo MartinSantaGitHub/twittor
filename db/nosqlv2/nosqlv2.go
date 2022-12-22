@@ -477,13 +477,13 @@ func (db *DbNoSqlV2) GetUsers(id string, page int64, limit int64, search string,
 		}
 
 		if include {
-			result.Email = ""
-			result.Password = ""
-			result.Avatar = ""
-			result.Banner = ""
-			result.Biography = ""
-			result.Location = ""
-			result.WebSite = ""
+			userRequest.Email = ""
+			userRequest.Password = ""
+			userRequest.Avatar = ""
+			userRequest.Banner = ""
+			userRequest.Biography = ""
+			userRequest.Location = ""
+			userRequest.WebSite = ""
 
 			results = append(results, &userRequest)
 		}
