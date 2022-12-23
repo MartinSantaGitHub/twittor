@@ -96,17 +96,6 @@ func getTweetModel(requestModel mr.Tweet) (m.Tweet, error) {
 	return tweetModel, nil
 }
 
-/* getRelationModel obtains the DB Relation model */
-func getRelationModel(requestModel mr.Relation) m.Relation {
-	var relationModel m.Relation
-
-	relationModel = m.Relation{
-		Active: requestModel.Active,
-	}
-
-	return relationModel
-}
-
 /* getRelationRequest obtains the Request Relation model */
 func getRelationRequest(relationModel m.Relation) mr.Relation {
 	requestModel := mr.Relation{

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 type DbSql struct {
@@ -30,9 +32,15 @@ func (db *DbSql) Connect() error {
 	user := os.Getenv("DB_REL_USER")
 	pass := os.Getenv("DB_REL_PASS")
 	dbName := os.Getenv("DB_REL_NAME")
+	dbSchema := os.Getenv("DB_REL_SCHEMA")
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s", host, user, pass, dbName, port)
-	client, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	client, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			TablePrefix:   fmt.Sprintf("%s.", dbSchema),
+			SingularTable: false,
+		},
+	})
 
 	if err != nil {
 		return err
@@ -607,10 +615,89 @@ func (db *DbSql) GetNotFollowing(id string, page int64, limit int64, search stri
 /* GetFollowingTweets returns the following's tweets */
 func (db *DbSql) GetFollowingTweets(id string, page int64, limit int64, isOnlyTweets bool) (any, int64, error) {
 	var results any
+	var user m.User
 	var total int64
-	var err error
 
-	log.Fatal("Method not implemented")
+	filter := "active = ?"
+	condition := "true"
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancel()
+
+	result := db.Connection.WithContext(ctx).
+		Preload("Following.Tweets", filter, condition).
+		First(&user, id)
+	err := result.Error
+
+	if err != nil {
+		return results, total, err
+	}
+
+	for _, user := range user.Following {
+		total += int64(len(user.Tweets))
+	}
+
+	offset := int((page - 1) * limit)
+	limitInt := int(limit)
+	ctxFind, cancelFind := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer cancelFind()
+
+	result = db.Connection.WithContext(ctxFind).
+		Preload("Following.Tweets", func(db *gorm.DB) *gorm.DB {
+			return db.Where(filter, condition).
+				Order("date desc").
+				Offset(offset).
+				Limit(limitInt)
+		}).First(&user, id)
+	err = result.Error
+
+	if err != nil {
+		return results, total, err
+	}
+
+	if isOnlyTweets {
+		var reqResults []*mr.Tweet
+		var tweets []m.Tweet
+
+		for _, u := range user.Following {
+			tweets = append(tweets, u.Tweets...)
+		}
+
+		for _, tweetModel := range tweets {
+			tweetRequest := getTweetRequest(tweetModel)
+			reqResults = append(reqResults, &tweetRequest)
+		}
+
+		sort.Slice(reqResults, func(i, j int) bool {
+			return reqResults[i].Date.After(reqResults[j].Date)
+		})
+
+		results = reqResults
+	} else {
+		var reqResults []*mr.UserTweet
+
+		for _, u := range user.Following {
+			for _, t := range u.Tweets {
+				userTweetRequest := mr.UserTweet{
+					UserId:         strconv.FormatUint(user.Id, 10),
+					UserRelationId: strconv.FormatUint(u.Id, 10),
+				}
+
+				userTweetRequest.Tweet.Id = strconv.FormatUint(t.Id, 10)
+				userTweetRequest.Tweet.Message = t.Message
+				userTweetRequest.Tweet.Date = t.Date
+
+				reqResults = append(reqResults, &userTweetRequest)
+			}
+		}
+
+		sort.Slice(reqResults, func(i, j int) bool {
+			return reqResults[i].Tweet.Date.After(reqResults[j].Tweet.Date)
+		})
+
+		results = reqResults
+	}
 
 	return results, total, err
 }
@@ -751,64 +838,5 @@ func encryptPassword(password string) (string, error) {
 
 	return string(bytes), err
 }
-
-// func getResults[T any](db *DbSql, colName string, countPipeline []primitive.M, aggPipeline []primitive.M) ([]*T, int64, error) {
-// 	var results []*T
-// 	var totalResult m.TotalResult
-
-// 	col := getCollection(db, "twittor", colName)
-
-// 	// region "Count"
-
-// 	ctxCount, cancelCount := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-// 	defer cancelCount()
-
-// 	curCount, err := col.Aggregate(ctxCount, countPipeline)
-
-// 	if err != nil {
-// 		return results, totalResult.Total, err
-// 	}
-
-// 	ctxCurCount := context.TODO()
-
-// 	defer curCount.Close(ctxCurCount)
-
-// 	if curCount.Next(ctxCurCount) {
-// 		err = curCount.Decode(&totalResult)
-// 	}
-
-// 	if err != nil {
-// 		return results, totalResult.Total, err
-// 	}
-
-// 	// endregion
-
-// 	// region "Aggregate"
-
-// 	ctxAggregate, cancelAggregate := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
-
-// 	defer cancelAggregate()
-
-// 	curAgg, err := col.Aggregate(ctxAggregate, aggPipeline)
-
-// 	if err != nil {
-// 		return results, totalResult.Total, err
-// 	}
-
-// 	ctxCurAgg := context.TODO()
-
-// 	defer curAgg.Close(ctxCurAgg)
-
-// 	err = curAgg.All(ctxCurAgg, &results)
-
-// 	if err != nil {
-// 		return results, totalResult.Total, err
-// 	}
-
-// 	// endregion
-
-// 	return results, totalResult.Total, nil
-// }
 
 // endregion
