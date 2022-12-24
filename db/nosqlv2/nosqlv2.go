@@ -205,7 +205,7 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 
 	callback := func(sessCtx mongo.SessionContext) (any, error) {
 		result, err := col.UpdateOne(sessCtx, filter, updateString)
-		// result, err := col.UpdateByID(ctx, objId, updateString)
+		// result, err := col.UpdateByID(sessCtx, objId, updateString)
 
 		return result, err
 	}
