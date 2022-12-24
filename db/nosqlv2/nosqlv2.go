@@ -113,16 +113,19 @@ func (db *DbNoSqlV2) InsertUser(user mr.User) (string, error) {
 		return "", err
 	}
 
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.InsertOne(sessCtx, userModel)
 
-	defer cancel()
+		return result, err
+	}
 
-	result, err := col.InsertOne(ctx, userModel)
+	res, err := db.executeTransaction(callback)
 
 	if err != nil {
 		return "", err
 	}
 
+	result := res.(*mongo.InsertOneResult)
 	objID, _ := result.InsertedID.(primitive.ObjectID)
 
 	return objID.String(), nil
@@ -200,18 +203,16 @@ func (db *DbNoSqlV2) ModifyRegistry(id string, user mr.User) error {
 	filter := bson.M{"_id": objId}
 	//filter := bson.M{"_id": bson.M{"$eq": objId}}
 
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.UpdateOne(sessCtx, filter, updateString)
+		// result, err := col.UpdateByID(ctx, objId, updateString)
 
-	defer cancel()
-
-	_, err = col.UpdateOne(ctx, filter, updateString)
-	//_, err := col.UpdateByID(ctx, objId, updateString)
-
-	if err != nil {
-		return err
+		return result, err
 	}
 
-	return nil
+	_, err = db.executeTransaction(callback)
+
+	return err
 }
 
 /* TryLogin makes the login to the DB */
@@ -313,17 +314,23 @@ func (db *DbNoSqlV2) InsertTweet(tweet mr.Tweet) (string, error) {
 	}
 
 	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.UpdateByID(sessCtx, objId, update)
 
-	defer cancel()
+		return result, err
+	}
 
-	_, err := col.UpdateByID(ctx, objId, update)
+	res, err := db.executeTransaction(callback)
 
 	if err != nil {
 		return "", err
 	}
 
-	return "", nil
+	result := res.(*mongo.UpdateResult)
+	objID, _ := result.UpsertedID.(primitive.ObjectID)
+
+	// The same goes with objId.String()
+	return objID.Hex(), nil
 }
 
 // endregion
@@ -387,17 +394,15 @@ func (db *DbNoSqlV2) InsertRelation(relation mr.Relation) error {
 	}
 
 	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.UpdateByID(sessCtx, objId, update)
 
-	defer cancel()
-
-	_, err = col.UpdateByID(ctx, objId, update)
-
-	if err != nil {
-		return err
+		return result, err
 	}
 
-	return nil
+	_, err = db.executeTransaction(callback)
+
+	return err
 }
 
 /* DeleteRelation deletes a relation in the DB */
@@ -741,17 +746,15 @@ func (db *DbNoSqlV2) deleteTweetLogical(id string, userId string) error {
 	}
 
 	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.UpdateOne(sessCtx, filter, update)
 
-	defer cancel()
-
-	_, err = col.UpdateOne(ctx, filter, update)
-
-	if err != nil {
-		return err
+		return result, err
 	}
 
-	return nil
+	_, err = db.executeTransaction(callback)
+
+	return err
 }
 
 func (db *DbNoSqlV2) deleteTweetFisical(id string, userId string) error {
@@ -769,17 +772,15 @@ func (db *DbNoSqlV2) deleteTweetFisical(id string, userId string) error {
 	}
 
 	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.UpdateByID(sessCtx, objUserId, update)
 
-	defer cancel()
-
-	_, err = col.UpdateByID(ctx, objUserId, update)
-
-	if err != nil {
-		return err
+		return result, err
 	}
 
-	return nil
+	_, err = db.executeTransaction(callback)
+
+	return err
 }
 
 func (db *DbNoSqlV2) deleteRelationFisical(relation mr.Relation) error {
@@ -797,17 +798,15 @@ func (db *DbNoSqlV2) deleteRelationFisical(relation mr.Relation) error {
 	}
 
 	col := getCollection(db, "twitton", "users")
-	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+	callback := func(sessCtx mongo.SessionContext) (any, error) {
+		result, err := col.UpdateByID(sessCtx, objId, update)
 
-	defer cancel()
-
-	_, err = col.UpdateByID(ctx, objId, update)
-
-	if err != nil {
-		return err
+		return result, err
 	}
 
-	return nil
+	_, err = db.executeTransaction(callback)
+
+	return err
 }
 
 func encryptPassword(password string) (string, error) {
@@ -819,6 +818,23 @@ func encryptPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), cost)
 
 	return string(bytes), err
+}
+
+func (db *DbNoSqlV2) executeTransaction(callback func(sessCtx mongo.SessionContext) (any, error)) (any, error) {
+	session, err := db.Connection.StartSession()
+
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := helpers.GetTimeoutCtx(os.Getenv("CTX_TIMEOUT"))
+
+	defer session.EndSession(ctx)
+	defer cancel()
+
+	result, err := session.WithTransaction(ctx, callback)
+
+	return result, err
 }
 
 func getCollection(db *DbNoSqlV2, dbName string, colName string) *mongo.Collection {
