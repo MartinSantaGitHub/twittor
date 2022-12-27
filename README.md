@@ -1,3 +1,3 @@
 # twittor
 
-A Twitter example application by Pablo Tilotta and modified by Martin Santamaria
+A Twitter example REST Service application made with Go (Golang) by Martin Santamaria
