@@ -388,7 +388,10 @@ func (db *DbSql) InsertRelation(relation mr.Relation) error {
 
 		defer cancelInsert()
 
-		err = tx.WithContext(ctxInsert).Model(&m.User{Id: userId}).Association("Following").Append(&m.User{Id: userRelationId})
+		err = tx.WithContext(ctxInsert).
+			Model(&m.User{Id: userId}).
+			Association("Following").
+			Append(&m.User{Id: userRelationId})
 
 		if err != nil {
 			tx.Rollback()
@@ -443,10 +446,6 @@ func (db *DbSql) GetUsers(id string, page int64, limit int64, search string, sea
 	for _, user := range users {
 		isRelation = false
 		include = false
-
-		if err != nil {
-			return results, total, err
-		}
 
 		userRequest := getUserRequest(user)
 
@@ -798,7 +797,9 @@ func (db *DbSql) deleteRelationFisical(relation mr.Relation) error {
 
 	defer cancel()
 
-	result := tx.WithContext(ctx).Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).Delete(&m.Relation{})
+	result := tx.WithContext(ctx).
+		Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).
+		Delete(&m.Relation{})
 	err := result.Error
 
 	if err != nil {
@@ -816,7 +817,10 @@ func (db *DbSql) updateRelation(relation mr.Relation, value bool) error {
 
 	defer cancel()
 
-	result := tx.WithContext(ctx).Model(&m.Relation{}).Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).Update("active", value)
+	result := tx.WithContext(ctx).
+		Model(&m.Relation{}).
+		Where(map[string]string{"user_id": relation.UserId, "following_id": relation.UserRelationId}).
+		Update("active", value)
 	err := result.Error
 
 	if err != nil {
